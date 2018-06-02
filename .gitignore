@@ -1,0 +1,14 @@
+inputs/*
+logs/*
+outputs/*
+weights/*
+__pycache__/
+.ipynb_checkpoints/
+*.pyc
+*.iws
+**/.idea/workspace.xml
+**/.idea/tasks.xml
+**/.idea/misc.xml
+
+# exception to the rule
+
