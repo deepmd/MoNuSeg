@@ -4,7 +4,7 @@ from common import *
 from consts import *
 from utils import init
 from utils.mo_dataset import MODataset
-from utils.metrics import criterion_fn
+from utils.metrics import criterion_fn, dice_value
 from models.unet import UNet
 
 init.set_results_reproducible()
@@ -32,6 +32,7 @@ def train_transforms(sample):
     # image = transforms.ToTensor()(image)
     # image = transforms.Normalize([0.03072981, 0.03072981, 0.01682784],
     #                              [0.17293351, 0.12542403, 0.0771413 ])(image)
+    sample['image'] = transforms.ToTensor()(sample['image'])
     return sample
 
 def valid_transforms(sample):
@@ -42,15 +43,21 @@ def valid_transforms(sample):
     # image = transforms.ToTensor()(image)
     # image = transforms.Normalize([0.03072981, 0.03072981, 0.01682784],
     #                              [0.17293351, 0.12542403, 0.0771413 ])(image)
+    sample['image'] = transforms.ToTensor()(sample['image'])
     return sample
 
-transforms = {'train': train_transforms, 'val': valid_transforms}
+trans = {'train': train_transforms, 'val': valid_transforms}
 all_ids = [os.path.splitext(f)[0] for f in os.listdir(os.path.join(INPUT_DIR, IMAGES_DIR))]
 ids_train, ids_valid = train_test_split(all_ids, test_size=0.2, random_state=42)
 ids = {'train': ids_train, 'val': ids_valid}
-datasets = {x: MODataset(INPUT_DIR, ids[x], transform=transforms[x]) for x in ['train', 'val']}
+datasets = {x: MODataset(INPUT_DIR,
+                         ids[x],
+                         num_patches=20,
+                         patch_size=256,
+                         transform=trans[x])
+           for x in ['train', 'val']}
 dataloaders = {x: torch.utils.data.DataLoader(datasets[x],
-                                              batch_size=10,
+                                              batch_size=8,
                                               shuffle=True, 
                                               num_workers=8,
                                               pin_memory=True)
@@ -79,17 +86,19 @@ def train_model(model, criterion, optimizer, scheduler = None, save_path = None,
                 model.train(False)  # Set model to evaluate mode
 
             running_loss = 0.0
+            running_dice = 0.0
                         
             # Iterate over data.
             for samples in dataloaders[phase]:
                 # get the inputs
-                inputs = [s['image'] for s in samples]
+                inputs = samples['image']
                 # get the targets
-                targets = [np.stack(s['masks']) for s in samples]
+                targets = np.swapaxes([np.stack(s) for s in samples['masks']], 0, 1)
+                targets = torch.tensor(targets, dtype=torch.float).cuda(async=True)
 
                 # wrap them in Variable
-                inputs = Variable(inputs.cuda(async=True))
-                
+                inputs = torch.tensor(inputs, requires_grad=True).cuda(async=True)
+
                 # zero the parameter gradients
                 optimizer.zero_grad()
 
@@ -103,12 +112,14 @@ def train_model(model, criterion, optimizer, scheduler = None, save_path = None,
                     optimizer.step()
 
                 # statistics
-                running_loss += loss.data[0] * inputs.size(0)
-                                
+                running_loss += loss.data * inputs.shape[0]
+                running_dice += (dice_value(outputs.data[:, 0], targets.data[:, 0]) +
+                                 dice_value(outputs.data[:, 1], targets.data[:, 1])) * inputs.shape[0]
+
             epoch_loss = running_loss / dataset_sizes[phase]
-            epoch_dice = 0 #ToDo
-                                    
-            print('{} Loss: {:.4f}'.format(phase, epoch_loss))
+            epoch_dice = running_dice / dataset_sizes[phase]
+
+            print('{} Loss: {:.4f} Dice: {:.4f}'.format(phase, epoch_loss, epoch_dice))
             if phase == 'val' and scheduler is not None:
                 scheduler.step(epoch_dice)
             
@@ -146,4 +157,4 @@ optimizer = optim.SGD(filter(lambda p:  p.requires_grad, net.parameters()), lr=0
 exp_lr_scheduler = lr_scheduler.ReduceLROnPlateau(optimizer, patience=10, verbose=True)
 
 model = train_model(net, criterion_fn, optimizer, exp_lr_scheduler,
-                    'weights/unet-{:.4f}.pt', num_epochs=5)
+                    'weights/unet-{:.4f}.pth', num_epochs=5)

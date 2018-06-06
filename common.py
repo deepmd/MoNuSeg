@@ -5,7 +5,7 @@ import random
 # imaging libs
 import cv2
 import skimage
-import skimage.morphology as morph
+import skimage.morphology as skmorph
 
 # visualizing libs
 import matplotlib

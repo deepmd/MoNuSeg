@@ -1,18 +1,28 @@
-from xml.dom import minidom
-from shapely.geometry import Polygon, Point
 from common import *
 from consts import *
-
-INSIDE_VALUE = 1
-BOUNDARY_VALUE = 0.5
 
 class MODataset(Dataset):
     """Multi Organ Dataset"""
 
-    def __init__(self, root_dir, ids, transform=None):
+    def __init__(self, root_dir, ids, num_patches=None, patch_size=None, transform=None):
         self.root_dir = root_dir
         self.ids = ids
         self.transform = transform
+        self.patch_coords = None
+        if num_patches is not None and patch_size is not None:
+            self.ids = np.random.permutation(np.repeat(ids, num_patches))
+            patch_info_path = os.path.join(root_dir, 'patches-{:d}-{:d}.csv'.format(num_patches, patch_size))
+            if os.path.isfile(patch_info_path):
+                self.patch_coords = np.genfromtxt(patch_info_path, delimiter=',', dtype=np.int)
+            else:
+                img_path = os.path.join(self.root_dir, IMAGES_DIR, self.ids[0] + '.tif')
+                img = cv2.imread(img_path)
+                self.patch_coords = np.zeros((len(self.ids), 4), dtype=np.int)
+                self.patch_coords[:, 0] = np.random.randint(0, img.shape[:-1][0]-patch_size-1, (len(self.ids)))
+                self.patch_coords[:, 1] = np.random.randint(0, img.shape[:-1][1]-patch_size-1, (len(self.ids)))
+                self.patch_coords[:, 2] = self.patch_coords[:, 0] + patch_size
+                self.patch_coords[:, 3] = self.patch_coords[:, 1] + patch_size
+                np.savetxt(patch_info_path, self.patch_coords, delimiter=',', fmt='%d')
 
     def __len__(self):
         return len(self.ids)
@@ -21,38 +31,18 @@ class MODataset(Dataset):
         img_path = os.path.join(self.root_dir, IMAGES_DIR, self.ids[idx]+'.tif')
         img = cv2.imread(img_path)
 
-        mask_path = os.path.join(self.root_dir, MASKS_DIR)
-        if not os.path.exists(mask_path):
-            os.makedirs(mask_path)
-        mask_path = os.path.join(mask_path, self.ids[idx]+'.png')
-        if os.path.isfile(mask_path):
-            mask = cv2.imread(mask_path) / 255
-            inside_mask = mask == INSIDE_VALUE
-            boundary_mask = mask == BOUNDARY_VALUE
-            background_mask = 1 - np.logical_or(inside_mask, boundary_mask)
-        else:
-            annotation_path = os.path.join(self.root_dir, ANNOTATIONS_DIR, self.ids[idx]+'.xml')
-            xml = minidom.parse(annotation_path)
-            regions_ = xml.getElementsByTagName("Region")
-            regions = []
-            for region in regions_:
-                vertices = region.getElementsByTagName('Vertex')
-                coords = np.zeros((len(vertices), 2))
-                for i, vertex in enumerate(vertices):
-                    coords[i][0] = vertex.attributes['X'].value
-                    coords[i][1] = vertex.attributes['Y'].value
-                regions.append(coords)
-            inside_mask = np.zeros(img.shape[:-1])
-            boundary_mask = np.zeros(img.shape[:-1])
-            for region in regions:
-                poly = Polygon(region)
-                MODataset.fill_boundary(poly, boundary_mask)
-                MODataset.fill_inside(poly, inside_mask)
-            boundary_mask = dilation(boundary_mask, square(3))
-            inside_mask = np.logical_and(inside_mask, 1 - boundary_mask)
-            background_mask = 1 - np.logical_or(inside_mask, boundary_mask)
-            mask = inside_mask * INSIDE_VALUE + boundary_mask * BOUNDARY_VALUE
-            cv2.imwrite(mask_path, mask*255)
+        mask_path = os.path.join(self.root_dir, MASKS_DIR, self.ids[idx]+'.png')
+        mask = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE)
+        inside_mask = (mask == INSIDE_VALUE).astype(int)
+        boundary_mask = (mask == BOUNDARY_VALUE).astype(int)
+        background_mask = 1 - np.logical_or(inside_mask, boundary_mask)
+
+        if self.patch_coords is not None:
+            y1, x1, y2, x2 = self.patch_coords[idx]
+            img             = img[y1:y2, x1:x2, :]
+            inside_mask     = inside_mask[y1:y2, x1:x2]
+            boundary_mask   = boundary_mask[y1:y2, x1:x2]
+            background_mask = background_mask[y1:y2, x1:x2]
 
         sample = {'image': img, 'masks': (inside_mask, boundary_mask, background_mask)}
         if self.transform is not None:
@@ -60,24 +50,11 @@ class MODataset(Dataset):
 
         return sample
 
-    @staticmethod
-    def fill_inside(polygon, mask):
-        for x in range(int(round(polygon.bounds[0])), max(int(round(polygon.bounds[2])), mask.shape[1]-1)):
-            for y in range(int(round(polygon.bounds[1])), max(int(round(polygon.bounds[3])), mask.shape[0]-1)):
-                if Point(x, y).intersects(polygon):
-                    mask[y, x] = INSIDE_VALUE
-
-    @staticmethod
-    def fill_boundary(polygon, mask):
-        ex, ey = polygon.exterior.xy;
-        for x, y in zip(ex, ey):
-            mask[max(int(round(y)), mask.shape[0]-1), max(int(round(x)), mask.shape[1]-1)] = BOUNDARY_VALUE
-
 
 #-----------------------------------------------------------------------
 def run_check_dataset():
     ids = ['TCGA-18-5592-01Z-00-DX1']
-    dataset = MODataset('../../MoNuSeg Training Data', ids)
+    dataset = MODataset('../../MoNuSeg Training Data', ids, num_patches=2, patch_size=256)
 
     for n in range(len(dataset)):
         sample = dataset[n]
