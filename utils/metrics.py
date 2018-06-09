@@ -45,7 +45,7 @@ class WeightedSoftDiceLoss(nn.Module):
         intersection = (m1 * m2)
         smooth = 1
         score = (2. * (w2*intersection).sum(1) + smooth) / ((w2*m1).sum(1) + (w2*m2).sum(1) + smooth)
-                #(2. * intersection.sum(1) + smooth) / (m1.sum(1) + m2.sum(1) + smooth)
+                # + (2. * intersection.sum(1) + smooth) / (m1.sum(1) + m2.sum(1) + smooth)
         loss = 1 - score.sum()/num
         return loss
 
@@ -80,53 +80,30 @@ def dice_value(logits, labels):
     return score.sum()/num
 
 
-def TP(masks, labels, num_samples):
-    tp = (masks * labels).sum(1)
-    tp = tp.sum()/num_samples
-    
-    return tp
-
-
-def FN(masks, labels, num_samples):
-    not_masks = 1 - masks
-    fn = (not_masks * labels).sum(1)
-    fn = fn.sum()/num_samples
-    
-    return fn
-
-
-def FP(masks, labels, num_samples):
-    not_labels = 1 - labels
-    fp = (masks * not_labels).sum(1)
-    fp = fp.sum()/num_samples
-    
-    return fp
-
-
-def SN(logits, labels, threshold):
-    masks  = F.sigmoid(logits)
-    masks  = (masks > threshold).float()
-    
-    num_samples   = labels.shape[0]
-    m = masks.view(num_samples, -1)
-    l = labels.view(num_samples, -1)    
-    tp = TP(m, l, num_samples)
-    fn = FN(m, l, num_samples)   
-    
-    smooth = 1
-    return (tp + smooth)/(tp + fn + smooth)
-
-
-def PPV(logits, labels, threshold):
-    masks  = F.sigmoid(logits)
-    masks  = (masks > threshold).float()
-    
-    num_samples   = labels.shape[0]
-    m = masks.view(num_samples, -1)
-    l = labels.view(num_samples, -1)
-    
-    tp = TP(m, l, num_samples)
-    fp = FP(m, l, num_samples)
-    
-    smooth = 1
-    return (tp + smooth)/(tp + fp + smooth)    
+def aggregated_jaccard(pred_labels, gt_labels):
+    C = 0
+    U = 0
+    pred_ls = range(pred_labels.max())
+    used_ls = set()
+    for gt_l in range(gt_labels.max()):
+        gt_label = (gt_labels == (gt_l+1)).astype(np.int)
+        max_iou = 0
+        for pred_l in pred_ls:
+            pred_label = (pred_labels == (pred_l+1)).astype(np.int)
+            intersection = (pred_label * gt_label).sum()
+            union = pred_label.sum() + gt_label.sum() - intersection
+            eps = 10**-6
+            iou = intersection / (union+eps)
+            if (iou > max_iou):
+                max_iou = iou
+                m_l = pred_l
+                m_intersection = intersection
+                m_union = union
+        if (max_iou != 0):
+            C += m_intersection
+            U += m_union
+            used_ls.add(m_l)
+    for pred_l in set(pred_ls) - used_ls:
+        pred_label = (pred_labels == (pred_l + 1)).astype(np.int)
+        U += pred_label.sum()
+    return C / U

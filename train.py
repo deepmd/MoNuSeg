@@ -48,7 +48,8 @@ def valid_transforms(sample):
 
 trans = {'train': train_transforms, 'val': valid_transforms}
 all_ids = [os.path.splitext(f)[0] for f in os.listdir(os.path.join(INPUT_DIR, IMAGES_DIR))]
-ids_train, ids_valid = train_test_split(all_ids, test_size=0.2, random_state=42)
+train_ids = [i for i in all_ids if i not in TEST_IDS]
+ids_train, ids_valid = train_test_split(train_ids, test_size=0.2, random_state=42)
 ids = {'train': ids_train, 'val': ids_valid}
 datasets = {x: MODataset(INPUT_DIR,
                          ids[x],
@@ -144,7 +145,7 @@ def train_model(model, criterion, optimizer, scheduler = None, save_path = None,
     return model
 
 
-########################### Config Model ##############################
+########################### Config Train ##############################
 
 net = UNet(3, 3).cuda()
 
@@ -156,5 +157,6 @@ optimizer = optim.SGD(filter(lambda p:  p.requires_grad, net.parameters()), lr=0
 #exp_lr_scheduler = lr_scheduler.StepLR(optimizer, step_size=50, gamma=0.1)
 exp_lr_scheduler = lr_scheduler.ReduceLROnPlateau(optimizer, patience=10, verbose=True)
 
+save_path = os.path.join(WEIGHTS_DIR, 'unet-{:.4f}.pth')
 model = train_model(net, criterion_fn, optimizer, exp_lr_scheduler,
-                    'weights/unet-{:.4f}.pth', num_epochs=5)
+                    save_path, num_epochs=5)

@@ -30,6 +30,7 @@ class MODataset(Dataset):
     def __getitem__(self, idx):
         img_path = os.path.join(self.root_dir, IMAGES_DIR, self.ids[idx]+'.tif')
         img = cv2.imread(img_path)
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
         mask_path = os.path.join(self.root_dir, MASKS_DIR, self.ids[idx]+'.png')
         mask = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE)
@@ -67,8 +68,7 @@ def run_check_dataset():
         bn_cmap[:, -1] = np.linspace(0, 1, 2)
         bn_cmap = colors.ListedColormap(bn_cmap)
         plt.rcParams['axes.facecolor'] = 'black'
-        img = cv2.cvtColor(sample['image'], cv2.COLOR_BGR2RGB)
-        plt.imshow(img)
+        plt.imshow(sample['image'])
         plt.imshow(sample['masks'][0], cmap=in_cmap, alpha=0.5)
         plt.imshow(sample['masks'][1], cmap=bn_cmap, alpha=0.5)
         plt.show()
