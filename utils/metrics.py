@@ -83,13 +83,15 @@ def dice_value(logits, labels):
 def aggregated_jaccard(pred_labels, gt_labels):
     C = 0
     U = 0
-    pred_ls = range(pred_labels.max())
-    used_ls = set()
-    for gt_l in range(gt_labels.max()):
-        gt_label = (gt_labels == (gt_l+1)).astype(np.int)
+    pred_ls = list(range(1, pred_labels.max()+1))
+    for gt_l in range(1, gt_labels.max()+1):
+        gt_label = (gt_labels == gt_l).astype(np.int)
         max_iou = 0
-        for pred_l in pred_ls:
-            pred_label = (pred_labels == (pred_l+1)).astype(np.int)
+        meeting_pred_ls = np.unique(pred_labels * gt_label)
+        for pred_l in meeting_pred_ls:
+            if pred_l not in pred_ls:
+                continue
+            pred_label = (pred_labels == pred_l).astype(np.int)
             intersection = (pred_label * gt_label).sum()
             union = pred_label.sum() + gt_label.sum() - intersection
             eps = 10**-6
@@ -99,11 +101,11 @@ def aggregated_jaccard(pred_labels, gt_labels):
                 m_l = pred_l
                 m_intersection = intersection
                 m_union = union
-        if (max_iou != 0):
+        if max_iou != 0:
             C += m_intersection
             U += m_union
-            used_ls.add(m_l)
-    for pred_l in set(pred_ls) - used_ls:
-        pred_label = (pred_labels == (pred_l + 1)).astype(np.int)
+            pred_ls.remove(m_l)
+    for pred_l in pred_ls:
+        pred_label = (pred_labels == pred_l).astype(np.int)
         U += pred_label.sum()
     return C / U
