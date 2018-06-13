@@ -12,3 +12,8 @@ TEST_IDS = ['TCGA-18-5592-01Z-00-DX1', 'TCGA-38-6178-01Z-00-DX1', 'TCGA-A7-A13E-
 
 INSIDE_VALUE = 127
 BOUNDARY_VALUE = 255
+
+UNET_CONFIG = {'down': [(64, 2), (128, 2), (256, 2), (512, 2)],
+               'base': [(512, 2)],
+               'up'  : [(256, 2), (128, 2), (64, 2), (64, 2)],
+               'up_method': 'bilinear'}

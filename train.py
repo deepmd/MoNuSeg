@@ -147,7 +147,7 @@ def train_model(model, criterion, optimizer, scheduler = None, save_path = None,
 
 ########################### Config Train ##############################
 
-net = UNet(3, 3).cuda()
+net = UNet(3, 3, UNET_CONFIG).cuda()
 
 # Observe that all parameters are being optimized
 optimizer = optim.SGD(filter(lambda p:  p.requires_grad, net.parameters()), lr=0.001,
