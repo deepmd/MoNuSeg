@@ -1,36 +1,61 @@
 from xml.dom import minidom
 from shapely.geometry import Polygon, Point
+from skimage import color, io
 from common import *
 from consts import *
 from utils import helper
+from skimage import measure, segmentation, morphology
+from scipy import ndimage
 
-def fill_inside(polygon, mask, labels, label_val):
+
+def fill_inside(polygon, mask, label_val):
     for x in range(int(round(polygon.bounds[0])), min(int(round(polygon.bounds[2])), mask.shape[1] - 1)):
         for y in range(int(round(polygon.bounds[1])), min(int(round(polygon.bounds[3])), mask.shape[0] - 1)):
             if Point(x, y).intersects(polygon):
-                mask[y, x] = 1
-                labels[y, x] = label_val
-
-def fill_boundary(polygon, mask):
-    ex, ey = polygon.exterior.xy
-    for x, y in zip(ex, ey):
-        mask[min(int(round(y)), mask.shape[0] - 1), min(int(round(x)), mask.shape[1] - 1)] = 1
+                mask[y, x] = label_val
 
 
-############################# Create Masks ##################################
-masks_path = os.path.join(INPUT_DIR, MASKS_DIR)
-if not os.path.exists(masks_path):
-    os.makedirs(masks_path)
-labels_path = os.path.join(INPUT_DIR, LABELS_DIR)
-if not os.path.exists(labels_path):
-    os.makedirs(labels_path)
+def get_border_and_centroid_vectors(labeled_mask):
+    (num_rows, num_cols) = labeled_mask.shape
+    vectors = np.zeros((num_rows, num_cols, 4))
+    for label in range(1, np.max(relabeled_mask)+1):
+        temp_mask = np.zeros_like(labeled_mask)
+        temp_mask = (relabeled_mask == label).astype(np.uint8)
+
+        # create vectors to borders of regions
+        inds = ndimage.morphology.distance_transform_edt(temp_mask, return_distances=False, return_indices=True)
+        vectors[:, :, 0] += np.expand_dims(np.arange(0, num_rows), axis=1) - inds[0]
+        vectors[:, :, 1] += np.expand_dims(np.arange(0, num_cols), axis=0) - inds[1]
+        # if norm:
+        #     vectors[:, :, 0] = vectors[:, :, 0] / (np.linalg.norm(vectors[:, :, 0], axis=0, keepdims=True) + 1e-5)
+        #     vectors[:, :, 1] = vectors[:, :, 1] / (np.linalg.norm(vectors[:, :, 1], axis=0, keepdims=True) + 1e-5)
+
+        # border_vectors = np.array([
+        #     np.expand_dims(np.arange(0, relabeled_mask.shape[0]), axis=1) - inds[0],
+        #     np.expand_dims(np.arange(0, relabeled_mask.shape[1]), axis=0) - inds[1]])
+
+        # border_vector_norm = border_vector / (np.linalg.norm(border_vector, axis=0, keepdims=True) + 1e-5)
+        # res_crop[:, :, 0] = border_vector_norm[0]
+        # res_crop[:, :, 1] = border_vector_norm[1]
+
+        # create vectors to centroids of regions
+        region_props = measure.regionprops(temp_mask)
+        for prop in region_props:
+            y, x = props.centroid
+            vectors[:, :, 2] += np.multiply(np.expand_dims(x - np.arange(0, num_rows), axis=1), temp_mask)
+            vectors[:, :, 3] += np.multiply(np.expand_dims(y - np.arange(0, num_cols), axis=0), temp_mask)
+
+    return vectors
+
+
+
 
 image_ids = [os.path.splitext(f)[0] for f in os.listdir(os.path.join(INPUT_DIR, IMAGES_DIR))]
 for image_id in image_ids:
-    masks_path = os.path.join(INPUT_DIR, MASKS_DIR, image_id+'.png')
-    labels_path = os.path.join(INPUT_DIR, LABELS_DIR, image_id+'.png')
-    if os.path.isfile(masks_path) and os.path.isfile(labels_path):
-        continue
+    # masks_path = os.path.join(INPUT_DIR, MASKS_DIR, image_id+'.png')
+    # labels_path = os.path.join(INPUT_DIR, LABELS_DIR, image_id+'.png')
+    # if os.path.isfile(masks_path) and os.path.isfile(labels_path):
+    #     continue
     img_path = os.path.join(INPUT_DIR, IMAGES_DIR, image_id+'.tif')
     img = cv2.imread(img_path)
     annotation_path = os.path.join(INPUT_DIR, ANNOTATIONS_DIR, image_id+'.xml')
@@ -46,19 +71,56 @@ for image_id in image_ids:
             coords[i][0] = vertex.attributes['X'].value
             coords[i][1] = vertex.attributes['Y'].value
         regions.append(coords)
-    inside_mask = np.zeros(img.shape[:-1])
-    boundary_mask = np.zeros(img.shape[:-1])
-    labels = np.zeros(img.shape[:-1])
+
+    # Assign pixels belong to multi region to larger region
+    labeled_mask_by_area = np.zeros(img.shape[:-1])
     for i, region in enumerate(regions):
         poly = Polygon(region)
-        fill_boundary(poly, boundary_mask)
-        fill_inside(poly, inside_mask, labels, i+1)
-    boundary_mask = skmorph.dilation(boundary_mask, skmorph.square(3))
-    inside_mask = (np.logical_and(inside_mask, 1 - boundary_mask)).astype(int)
-    mask = inside_mask * INSIDE_VALUE + boundary_mask * BOUNDARY_VALUE
-    cv2.imwrite(masks_path, mask)
-    num_labels = np.max(len(regions))
-    colored_labels = \
-        skimage.color.label2rgb(labels, colors=helper.get_spaced_colors(num_labels)).astype(np.uint8)
-    rgb_labels = cv2.cvtColor(colored_labels, cv2.COLOR_RGB2BGR)
-    cv2.imwrite(labels_path, rgb_labels)
+        temp_mask = np.zeros(img.shape[:-1])
+        fill_inside(poly, temp_mask, int(poly.area))
+        labeled_mask_by_area = np.maximum.reduce([labeled_mask_by_area, temp_mask])
+
+    relabeled_mask, _, _ = segmentation.relabel_sequential(labeled_mask_by_area)
+
+    mask = (relabeled_mask > 0).astype(np.uint8)
+
+    boundary_mask = segmentation.find_boundaries(relabeled_mask, mode='inner').astype(np.uint8)
+
+    inside_mask = np.multiply(mask, (1 - boundary_mask))
+
+    colored_labeled_mask = color.label2rgb(relabeled_mask,
+                                           colors=helper.get_spaced_colors(np.max(relabeled_mask)),
+                                           bg_label=0).astype(np.uint8)
+
+    boundary_colored_labeled_mask = segmentation.mark_boundaries(colored_labeled_mask,
+                                                                 relabeled_mask,
+                                                                 color=(1, 1, 1),
+                                                                 mode='inner')
+
+    centroids = np.zeros(img.shape[:-1])
+    region_props = measure.regionprops(relabeled_mask)
+    for props in region_props:
+        y, x = props.centroid
+        centroids[int(round(y)), int(round(x))] = 1
+        colored_labeled_mask[int(round(y)), int(round(x))] = (0, 0, 0)
+    centroids = morphology.dilation(centroids, selem=np.ones((3, 3)))
+
+    vectors = get_border_and_centroid_vectors(relabeled_mask)
+
+    masks_path = os.path.join(INPUT_DIR, MASKS_DIR, image_id + '.png')
+    labels_path = os.path.join(INPUT_DIR, LABELS_DIR, image_id)
+    inside_mask_path = os.path.join(INPUT_DIR, INSIDE_MASKS_DIR, image_id+'.png')
+    boundary_mask_path = os.path.join(INPUT_DIR, BOUNDARY_MASKS_DIR, image_id+'.png')
+    colored_labeled_mask_path = os.path.join(INPUT_DIR, COLORED_LABELED_MASKS_DIR, image_id+'.png')
+    boundary_colored_labeled_mask_path = os.path.join(INPUT_DIR, BOUNDARY_COLORED_LABELED_MASKS_DIR, image_id+'.png')
+    centroids_masks_path = os.path.join(INPUT_DIR, CENTROIDS_MASKS_DIR, image_id+'.png')
+    vectors_path = os.path.join(INPUT_DIR, VECTORES_DIR, image_id)
+
+    io.imsave(masks_path, mask * 255)
+    np.save(labels_path, relabeled_mask)
+    io.imsave(inside_mask_path, inside_mask * 255)
+    io.imsave(boundary_mask_path, boundary_mask * 255)
+    io.imsave(colored_labeled_mask_path, colored_labeled_mask)
+    io.imsave(boundary_colored_labeled_mask_path, boundary_colored_labeled_mask)
+    io.imsave(centroids_masks_path, centroids)
+    np.save(vectors_path, vectors)
