@@ -2,14 +2,14 @@ from .unet_parts import *
 
 
 class UNet(nn.Module):
-    def __init__(self, n_channels, n_classes, config):
+    def __init__(self, config):
         super(UNet, self).__init__()
         if len(config['down']) != len(config['up']):
             raise ValueError('Length of \'down\' and \'up\' should be the same.')
         self.downs = []
         self.bases = []
         self.ups = []
-        last_channels = n_channels
+        last_channels = config['in_channels']
         for d_channels, n in config['down']:
             self.downs.append(down(last_channels, d_channels, n))
             last_channels = d_channels
@@ -20,7 +20,7 @@ class UNet(nn.Module):
         for (u_channels, n), (d_channels, _) in zip(config['up'], reversed(config['down'])):
             self.ups.append(up(last_channels + d_channels, u_channels, n, bilinear_up))
             last_channels = u_channels
-        self.outc = outconv(last_channels, n_classes)
+        self.outc = outconv(last_channels, config['out_channels'])
         self.downs = nn.ModuleList(self.downs)
         self.bases = nn.ModuleList(self.bases)
         self.ups = nn.ModuleList(self.ups)

@@ -65,7 +65,7 @@ def post_processing(pred):
     return labels
 
 ########################### Config Predict ##############################
-net = UNet(3, 3).cuda()
+net = UNet(UNET_CONFIG).cuda()
 weight_path = os.path.join(WEIGHTS_DIR, 'unet-0.7819.pth')
 net.load_state_dict(torch.load(weight_path))
 sum_agg_jac = 0
@@ -79,17 +79,21 @@ for test_id in TEST_IDS:
     num_labels = np.max(pred_labels)
     colored_labels = \
         skimage.color.label2rgb(pred_labels, colors=helper.get_spaced_colors(num_labels)).astype(np.uint8)
-    pred_labels_path = os.path.join(OUTPUT_DIR, test_id + '.png')
-    rgb_labels = cv2.cvtColor(colored_labels, cv2.COLOR_RGB2BGR)
-    cv2.imwrite(pred_labels_path, rgb_labels)
+    pred_labels_path = os.path.join(OUTPUT_DIR, 'UNET', LABELS_DIR, test_id)
+    pred_colored_labels_path = os.path.join(OUTPUT_DIR, 'UNET', COLORED_LABELS_DIR, test_id+'.png')
+    np.save(pred_labels_path, pred_labels)
+    bgr_labels = cv2.cvtColor(colored_labels, cv2.COLOR_RGB2BGR)
+    cv2.imwrite(pred_colored_labels_path, bgr_labels)
     # plt.imshow(img)
     # plt.imshow(colored_labels, alpha=0.5)
     # plt.show()
     # cv2.waitKey(0)
 
-    label_path = os.path.join(INPUT_DIR, LABELS_DIR, test_id+'.png')
-    labels_img = cv2.imread(label_path)
-    gt_labels = helper.rgb2label(labels_img)
+    # colored_labels_path = os.path.join(INPUT_DIR, COLORED_LABELS_DIR, test_id+'.png')
+    # labels_img = cv2.imread(colored_labels_path)
+    # gt_labels = helper.rgb2label(labels_img)
+    labels_path = os.path.join(INPUT_DIR, LABELS_DIR, test_id+'.npy')
+    gt_labels = np.load(labels_path)
     agg_jac = aggregated_jaccard(pred_labels, gt_labels)
     sum_agg_jac += agg_jac
     print('{}\'s Aggregated Jaccard Index: {:.4f}'.format(test_id, agg_jac))

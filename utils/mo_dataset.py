@@ -15,7 +15,7 @@ class MODataset(Dataset):
             if os.path.isfile(patch_info_path):
                 self.patch_coords = np.genfromtxt(patch_info_path, delimiter=',', dtype=np.int)
             else:
-                img_path = os.path.join(self.root_dir, IMAGES_DIR, self.ids[0] + '.tif')
+                img_path = os.path.join(self.root_dir, IMAGES_DIR, self.ids[0]+'.tif')
                 img = cv2.imread(img_path)
                 self.patch_coords = np.zeros((len(self.ids), 4), dtype=np.int)
                 self.patch_coords[:, 0] = np.random.randint(0, img.shape[:-1][0]-patch_size-1, (len(self.ids)))
@@ -32,10 +32,10 @@ class MODataset(Dataset):
         img = cv2.imread(img_path)
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
-        mask_path = os.path.join(self.root_dir, MASKS_DIR, self.ids[idx]+'.png')
-        mask = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE)
-        inside_mask = (mask == INSIDE_VALUE).astype(int)
-        boundary_mask = (mask == BOUNDARY_VALUE).astype(int)
+        inside_mask_path = os.path.join(self.root_dir, INSIDE_MASKS_DIR, self.ids[idx]+'.png')
+        inside_mask = cv2.imread(inside_mask_path, cv2.IMREAD_GRAYSCALE)
+        boundary_mask_path = os.path.join(self.root_dir, BOUNDARY_MASKS_DIR, self.ids[idx]+'.png')
+        boundary_mask = cv2.imread(boundary_mask_path, cv2.IMREAD_GRAYSCALE)
         background_mask = 1 - np.logical_or(inside_mask, boundary_mask)
 
         if self.patch_coords is not None:

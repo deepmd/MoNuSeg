@@ -1,5 +1,5 @@
 from common import *
-from consts import *
+from skimage import measure
 
 def get_spaced_colors(n, cmap=None):
     if cmap is None:
@@ -30,3 +30,35 @@ def rgb2label(img):
         for y, x in colors_coords[color]:
             labels[y, x] = i+1
     return labels
+
+
+def get_border_and_centroid_vectors(labeled_mask):
+    (num_rows, num_cols) = labeled_mask.shape
+    vectors = np.zeros((num_rows, num_cols, 4))
+    for label in range(1, np.max(labeled_mask)+1):
+        temp_mask = (labeled_mask == label).astype(np.uint8)
+
+        # create vectors to borders of regions
+        inds = ndimage.morphology.distance_transform_edt(temp_mask, return_distances=False, return_indices=True)
+        vectors[:, :, 0] += np.expand_dims(np.arange(0, num_rows), axis=1) - inds[0]
+        vectors[:, :, 1] += np.expand_dims(np.arange(0, num_cols), axis=0) - inds[1]
+        # if norm:
+        #     vectors[:, :, 0] = vectors[:, :, 0] / (np.linalg.norm(vectors[:, :, 0], axis=0, keepdims=True) + 1e-5)
+        #     vectors[:, :, 1] = vectors[:, :, 1] / (np.linalg.norm(vectors[:, :, 1], axis=0, keepdims=True) + 1e-5)
+
+        # border_vectors = np.array([
+        #     np.expand_dims(np.arange(0, relabeled_mask.shape[0]), axis=1) - inds[0],
+        #     np.expand_dims(np.arange(0, relabeled_mask.shape[1]), axis=0) - inds[1]])
+
+        # border_vector_norm = border_vector / (np.linalg.norm(border_vector, axis=0, keepdims=True) + 1e-5)
+        # res_crop[:, :, 0] = border_vector_norm[0]
+        # res_crop[:, :, 1] = border_vector_norm[1]
+
+        # create vectors to centroids of regions
+        region_props = measure.regionprops(temp_mask)
+        for props in region_props:
+            y, x = props.centroid
+            vectors[:, :, 2] += np.multiply(np.expand_dims(x - np.arange(0, num_rows), axis=1), temp_mask)
+            vectors[:, :, 3] += np.multiply(np.expand_dims(y - np.arange(0, num_cols), axis=0), temp_mask)
+
+    return vectors

@@ -6,6 +6,7 @@ import random
 import cv2
 import skimage
 import skimage.morphology as skmorph
+from scipy import ndimage
 
 # visualizing libs
 import matplotlib
