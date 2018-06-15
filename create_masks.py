@@ -20,8 +20,7 @@ def create_masks():
              os.path.join(INPUT_DIR, CENTROIDS_MASKS_DIR),
              os.path.join(INPUT_DIR, LABELS_DIR),
              os.path.join(INPUT_DIR, COLORED_LABELS_DIR),
-             os.path.join(INPUT_DIR, BOUNDARY_COLORED_LABELS_DIR),
-             os.path.join(INPUT_DIR, VECTORS_DIR)]
+             os.path.join(INPUT_DIR, BOUNDARY_COLORED_LABELS_DIR)]
     for path in paths:
         if not os.path.exists(path):
             os.makedirs(path)
