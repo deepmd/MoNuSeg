@@ -14,12 +14,13 @@ class MODataset(Dataset):
             patch_info_path = os.path.join(root_dir, 'patches-{:d}-{:d}.csv'.format(num_patches, patch_size))
             if os.path.isfile(patch_info_path):
                 self.patch_coords = np.genfromtxt(patch_info_path, delimiter=',', dtype=np.int)
+                self.patch_coords = self.patch_coords if self.patch_coords.ndim > 1 else np.expand_dims(self.patch_coords, axis=0)
             else:
                 img_path = os.path.join(self.root_dir, IMAGES_DIR, self.ids[0]+'.tif')
                 img = cv2.imread(img_path)
                 self.patch_coords = np.zeros((len(self.ids), 4), dtype=np.int)
-                self.patch_coords[:, 0] = np.random.randint(0, img.shape[:-1][0]-patch_size-1, (len(self.ids)))
-                self.patch_coords[:, 1] = np.random.randint(0, img.shape[:-1][1]-patch_size-1, (len(self.ids)))
+                self.patch_coords[:, 0] = np.random.randint(0, img.shape[:-1][0]-patch_size, (len(self.ids)))
+                self.patch_coords[:, 1] = np.random.randint(0, img.shape[:-1][1]-patch_size, (len(self.ids)))
                 self.patch_coords[:, 2] = self.patch_coords[:, 0] + patch_size
                 self.patch_coords[:, 3] = self.patch_coords[:, 1] + patch_size
                 np.savetxt(patch_info_path, self.patch_coords, delimiter=',', fmt='%d')

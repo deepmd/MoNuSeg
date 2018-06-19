@@ -1,6 +1,6 @@
 from xml.dom import minidom
 from shapely.geometry import Polygon, Point
-from skimage import color, io, measure, segmentation
+from skimage import color, io, segmentation
 from common import *
 from consts import *
 from utils import helper
@@ -17,7 +17,6 @@ def create_masks():
     paths = [os.path.join(INPUT_DIR, MASKS_DIR),
              os.path.join(INPUT_DIR, INSIDE_MASKS_DIR),
              os.path.join(INPUT_DIR, BOUNDARY_MASKS_DIR),
-             os.path.join(INPUT_DIR, CENTROIDS_MASKS_DIR),
              os.path.join(INPUT_DIR, LABELS_DIR),
              os.path.join(INPUT_DIR, COLORED_LABELS_DIR),
              os.path.join(INPUT_DIR, BOUNDARY_COLORED_LABELS_DIR)]
@@ -71,21 +70,12 @@ def create_masks():
                                                                color=(1, 1, 1),
                                                                mode='inner')
 
-        centroids = np.zeros(img.shape[:-1])
-        region_props = measure.regionprops(relabeled_mask)
-        for props in region_props:
-            y, x = props.centroid
-            centroids[int(round(y)), int(round(x))] = 1
-            colored_labels[int(round(y)), int(round(x))] = (0, 0, 0)
-        centroids = skmorph.dilation(centroids, selem=np.ones((3, 3)))
-
         masks_path = os.path.join(INPUT_DIR, MASKS_DIR, image_id+'.png')
         labels_path = os.path.join(INPUT_DIR, LABELS_DIR, image_id+'.npy')
         inside_mask_path = os.path.join(INPUT_DIR, INSIDE_MASKS_DIR, image_id+'.png')
         boundary_mask_path = os.path.join(INPUT_DIR, BOUNDARY_MASKS_DIR, image_id+'.png')
         colored_labeled_mask_path = os.path.join(INPUT_DIR, COLORED_LABELS_DIR, image_id+'.png')
         boundary_colored_labeled_mask_path = os.path.join(INPUT_DIR, BOUNDARY_COLORED_LABELS_DIR, image_id+'.png')
-        centroids_masks_path = os.path.join(INPUT_DIR, CENTROIDS_MASKS_DIR, image_id+'.png')
 
         io.imsave(masks_path, mask * 255)
         np.save(labels_path, relabeled_mask)
@@ -93,7 +83,6 @@ def create_masks():
         io.imsave(boundary_mask_path, boundary_mask * 255)
         io.imsave(colored_labeled_mask_path, colored_labels)
         io.imsave(boundary_colored_labeled_mask_path, boundary_colored_labels)
-        io.imsave(centroids_masks_path, centroids)
 
 
 # main #################################################################

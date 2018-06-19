@@ -8,7 +8,6 @@ ANNOTATIONS_DIR = 'Annotations'
 MASKS_DIR = 'Masks'
 INSIDE_MASKS_DIR = 'Masks/Inside'
 BOUNDARY_MASKS_DIR = 'Masks/Boundary'
-CENTROIDS_MASKS_DIR = 'Masks/Centroid'
 LABELS_DIR = 'Labels'
 COLORED_LABELS_DIR = 'Labels/Colored'
 BOUNDARY_COLORED_LABELS_DIR = 'Labels/Boundary_Colored'
@@ -21,3 +20,16 @@ UNET_CONFIG = {'in_channels': 3, 'out_channels': 3,
                'base': [(512, 2)],
                'up'  : [(256, 2), (128, 2), (64, 2), (64, 2)],
                'up_method': 'bilinear'}
+
+DOUBLE_UNET_CONFIG = {
+    'unet1': {'in_channels': 3, 'out_channels': 4,
+              'down': [(64, 2), (128, 2), (256, 2), (512, 2)],
+              'base': [(512, 2)],
+              'up'  : [(256, 2), (128, 2), (64, 2), (64, 2)],
+              'up_method': 'bilinear'},
+    'unet2': {'in_channels': 4, 'out_channels': 5,
+              'down': [(64, 2), (128, 2), (256, 2), (512, 2)],
+              'base': [(512, 2)],
+              'up'  : [(256, 2), (128, 2), (64, 2), (64, 2)],
+              'up_method': 'bilinear'}
+}

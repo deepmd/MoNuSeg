@@ -32,10 +32,11 @@ def rgb2label(img):
     return labels
 
 
-def get_border_and_centroid_vectors(labeled_mask):
+def get_centroids_and_vectors(labeled_mask):
+    centroids = np.zeros_like(labeled_mask)
     (num_rows, num_cols) = labeled_mask.shape
     vectors = np.zeros((num_rows, num_cols, 4))
-    for label in range(1, np.max(labeled_mask)+1):
+    for label in np.unique(labeled_mask):
         temp_mask = (labeled_mask == label).astype(np.uint8)
 
         # create vectors to borders of regions
@@ -58,7 +59,9 @@ def get_border_and_centroid_vectors(labeled_mask):
         region_props = measure.regionprops(temp_mask)
         for props in region_props:
             y, x = props.centroid
+            centroids[int(round(y)), int(round(x))] = 1
             vectors[:, :, 2] += np.multiply(np.expand_dims(x - np.arange(0, num_rows), axis=1), temp_mask)
             vectors[:, :, 3] += np.multiply(np.expand_dims(y - np.arange(0, num_cols), axis=0), temp_mask)
+    centroids = skmorph.dilation(centroids, selem=np.ones((3, 3)))
 
-    return vectors
+    return centroids, vectors
