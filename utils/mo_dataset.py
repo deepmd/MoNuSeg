@@ -34,22 +34,24 @@ class MODataset(Dataset):
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
         inside_mask_path = os.path.join(self.root_dir, INSIDE_MASKS_DIR, self.ids[idx]+'.png')
-        inside_mask = cv2.imread(inside_mask_path, cv2.IMREAD_GRAYSCALE)
+        inside_mask = cv2.imread(inside_mask_path, cv2.IMREAD_GRAYSCALE) / 255
         boundary_mask_path = os.path.join(self.root_dir, BOUNDARY_MASKS_DIR, self.ids[idx]+'.png')
-        boundary_mask = cv2.imread(boundary_mask_path, cv2.IMREAD_GRAYSCALE)
-        background_mask = 1 - np.logical_or(inside_mask, boundary_mask)
+        boundary_mask = cv2.imread(boundary_mask_path, cv2.IMREAD_GRAYSCALE) / 255
 
         if self.patch_coords is not None:
             y1, x1, y2, x2 = self.patch_coords[idx]
             img             = img[y1:y2, x1:x2, :]
             inside_mask     = inside_mask[y1:y2, x1:x2]
             boundary_mask   = boundary_mask[y1:y2, x1:x2]
-            background_mask = background_mask[y1:y2, x1:x2]
 
-        sample = {'image': img, 'masks': (inside_mask, boundary_mask, background_mask)}
+        masks = np.stack([inside_mask, boundary_mask], axis=-1)
         if self.transform is not None:
-            sample = self.transform(sample)
+            img, masks = self.transform(img, masks)
 
+        background_mask = 1 - np.any(masks, axis=-1, keepdims=True)
+        masks = np.append(masks, background_mask, axis=-1)
+        masks = np.moveaxis(masks, -1, 0)
+        sample = {'image': img, 'masks': masks}
         return sample
 
 

@@ -4,7 +4,7 @@ from common import *
 from consts import *
 from utils import init
 from utils.mo_dataset import MODataset
-from utils.metrics import criterion_fn, dice_value
+from utils.metrics import criterion_BCE_SoftDice, dice_value
 from models.unet import UNet
 
 init.set_results_reproducible()
@@ -12,7 +12,7 @@ init.init_torch()
 
 ############################# Load Data ##################################
 
-def train_transforms(sample):
+def train_transforms(image, masks):
     # image = transforms.Resize((image_size, image_size))(image)
     # mask = transforms.Resize((mask_size, mask_size))(mask)
     # # Convert PIL image to 3D numpy
@@ -32,10 +32,10 @@ def train_transforms(sample):
     # image = transforms.ToTensor()(image)
     # image = transforms.Normalize([0.03072981, 0.03072981, 0.01682784],
     #                              [0.17293351, 0.12542403, 0.0771413 ])(image)
-    sample['image'] = transforms.ToTensor()(sample['image'])
-    return sample
+    image = transforms.ToTensor()(image)
+    return image, masks
 
-def valid_transforms(sample):
+def valid_transforms(image, masks):
     # image = transforms.Resize((image_size, image_size))(image)
     # mask = transforms.Resize((mask_size, mask_size))(mask)
     # multi_mask = mask_processing.mask_to_multimask(mask)
@@ -43,8 +43,8 @@ def valid_transforms(sample):
     # image = transforms.ToTensor()(image)
     # image = transforms.Normalize([0.03072981, 0.03072981, 0.01682784],
     #                              [0.17293351, 0.12542403, 0.0771413 ])(image)
-    sample['image'] = transforms.ToTensor()(sample['image'])
-    return sample
+    image = transforms.ToTensor()(image)
+    return image, masks
 
 trans = {'train': train_transforms, 'val': valid_transforms}
 all_ids = [os.path.splitext(f)[0] for f in os.listdir(os.path.join(INPUT_DIR, IMAGES_DIR))]
@@ -92,13 +92,9 @@ def train_model(model, criterion, optimizer, scheduler = None, save_path = None,
             # Iterate over data.
             for samples in dataloaders[phase]:
                 # get the inputs
-                inputs = samples['image']
+                inputs = torch.tensor(samples['image'], requires_grad=True).cuda(async=True)
                 # get the targets
-                targets = np.swapaxes([np.stack(s) for s in samples['masks']], 0, 1)
-                targets = torch.tensor(targets, dtype=torch.float).cuda(async=True)
-
-                # wrap them in Variable
-                inputs = torch.tensor(inputs, requires_grad=True).cuda(async=True)
+                targets = torch.tensor(samples['masks'], dtype=torch.float).cuda(async=True)
 
                 # zero the parameter gradients
                 optimizer.zero_grad()
@@ -158,5 +154,6 @@ optimizer = optim.SGD(filter(lambda p:  p.requires_grad, net.parameters()), lr=0
 exp_lr_scheduler = lr_scheduler.ReduceLROnPlateau(optimizer, patience=10, verbose=True)
 
 save_path = os.path.join(WEIGHTS_DIR, 'unet-{:.4f}.pth')
-model = train_model(net, criterion_fn, optimizer, exp_lr_scheduler,
+model = train_model(net, criterion_BCE_SoftDice, optimizer, exp_lr_scheduler,
                     save_path, num_epochs=5)
+

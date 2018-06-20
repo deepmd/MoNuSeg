@@ -1,3 +1,4 @@
+import torch.nn as nn
 from ..unet import UNet
 
 

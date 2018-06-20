@@ -16,7 +16,7 @@ class MODatasetDouble(MODataset):
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
         mask_path = os.path.join(self.root_dir, MASKS_DIR, self.ids[idx]+'.png')
-        mask = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE)
+        mask = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE) / 255
         labels_path = os.path.join(self.root_dir, LABELS_DIR, self.ids[idx]+'.npy')
         labels = np.load(labels_path)
 
@@ -26,13 +26,14 @@ class MODatasetDouble(MODataset):
             mask = mask[y1:y2, x1:x2]
             labels = labels[y1:y2, x1:x2]
 
-        sample = {'image': img, 'masks': mask, 'labels': labels}
+        masks = np.stack([mask, labels], axis=-1)
         if self.transform is not None:
-            sample = self.transform(sample)
+            img, masks = self.transform(img, masks)
 
-        centroids, vectors = helper.get_centroids_and_vectors(sample['labels'])
-        sample = {'image': img, 'masks': (mask, centroids), 'vectors': vectors}
-
+        labels = masks[..., -1]
+        centroids, vectors, areas = helper.get_centroids_vectors_areas(labels)
+        masks = np.stack([mask, centroids], axis=0)
+        sample = {'image': img, 'masks': masks, 'vectors': vectors, 'areas': areas}
         return sample
 
 

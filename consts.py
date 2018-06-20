@@ -27,7 +27,7 @@ DOUBLE_UNET_CONFIG = {
               'base': [(512, 2)],
               'up'  : [(256, 2), (128, 2), (64, 2), (64, 2)],
               'up_method': 'bilinear'},
-    'unet2': {'in_channels': 4, 'out_channels': 5,
+    'unet2': {'in_channels': 4, 'out_channels': 2,
               'down': [(64, 2), (128, 2), (256, 2), (512, 2)],
               'base': [(512, 2)],
               'up'  : [(256, 2), (128, 2), (64, 2), (64, 2)],

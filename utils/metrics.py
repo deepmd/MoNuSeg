@@ -1,7 +1,14 @@
 from common import *
 
 
-def criterion_fn(logits, labels, use_weight=False):
+def criterion_AngularError(logits, labels, areas):
+    loss = AngularErrorLoss()(logits[:, :2], labels[:, :2], areas) + \
+           AngularErrorLoss()(logits[:, 2:], labels[:, 2:], areas)
+
+    return loss
+
+
+def criterion_BCE_SoftDice(logits, labels, dice_for=(0,1), use_weight=False):
     # compute weights
     batch_size, C, H, W = labels.shape
     if use_weight:
@@ -24,11 +31,11 @@ def criterion_fn(logits, labels, use_weight=False):
     else:
         weights = torch.ones(labels.shape, requires_grad=True).cuda(async=True)
 
-    l = WeightedBCELoss2d()(logits, labels, weights) + \
-        WeightedSoftDiceLoss()(logits[:, 0], labels[:, 0], weights[:, 0]) + \
-        WeightedSoftDiceLoss()(logits[:, 1], labels[:, 1], weights[:, 1])
+    loss = WeightedBCELoss2d()(logits, labels, weights)
+    for d in dice_for:
+        loss = loss + WeightedSoftDiceLoss()(logits[:, d], labels[:, d], weights[:, d])
 
-    return l
+    return loss
 
 
 class WeightedSoftDiceLoss(nn.Module):
@@ -66,6 +73,23 @@ class WeightedBCELoss2d(nn.Module):
         # Heng implementation
         #loss = w*z.clamp(min=0) - w*z*t + w*torch.log(1 + torch.exp(-z.abs()))
         #loss = loss.sum()/w.sum()
+        return loss
+
+
+class AngularErrorLoss(nn.Module):
+    def __init__(self):
+        super(AngularErrorLoss, self).__init__()
+
+    def forward(self, logits, labels, weights):
+        probs = F.sigmoid(logits)
+        norms = torch.norm(probs, p=2, dim=1, keepdim=True)
+        norms[norms == 0] = 1 # preventing division by zero
+        norms = torch.cat((norms, norms), dim=1)
+        probs = probs / norms
+        dot_prods = torch.sum(probs * labels, 1)
+        dot_prods = dot_prods.clamp(-1, 1)
+        error_angles = torch.acos(dot_prods)
+        loss = torch.sum(error_angles * error_angles * weights)
         return loss
 
 
