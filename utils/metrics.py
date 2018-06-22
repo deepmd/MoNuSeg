@@ -82,10 +82,7 @@ class AngularErrorLoss(nn.Module):
 
     def forward(self, logits, labels, weights):
         probs = F.sigmoid(logits)
-        norms = torch.norm(probs, p=2, dim=1, keepdim=True)
-        # norms[norms == 0] = 1 # preventing division by zero
-        norms = torch.cat((norms, norms), dim=1)
-        probs = probs / norms
+        probs = F.normalize(probs, p=2, dim=1) * 0.999999  # multiplying by 0.999999 prevents 'nan'!
         dot_prods = torch.sum(probs * labels, 1)
         dot_prods = dot_prods.clamp(-1, 1)
         error_angles = torch.acos(dot_prods)

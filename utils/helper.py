@@ -1,6 +1,7 @@
 from common import *
 from skimage import measure
 
+
 def get_spaced_colors(n, cmap=None):
     if cmap is None:
         max_value = 255**3
@@ -68,8 +69,8 @@ def get_centroids_vectors_areas(labeled_mask):
             vectors[3, :, :] += np.multiply(np.expand_dims(y - np.arange(0, num_cols), axis=0), temp_mask)
 
     norms = np.concatenate(
-        [np.tile(np.linalg.norm(vectors[:2, ...], 2, 0), (2, 1, 1)),
-         np.tile(np.linalg.norm(vectors[2:, ...], 2, 0), (2, 1, 1))])
+        [np.tile(np.linalg.norm(vectors[:2], 2, 0), (2, 1, 1)),
+         np.tile(np.linalg.norm(vectors[2:], 2, 0), (2, 1, 1))])
     norms[norms == 0] = 1  # preventing division by zero
     vectors = vectors / norms
 
