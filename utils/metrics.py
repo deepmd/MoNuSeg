@@ -129,4 +129,4 @@ def aggregated_jaccard(pred_labels, gt_labels):
     for pred_l in pred_ls:
         pred_label = (pred_labels == pred_l).astype(np.int)
         U += pred_label.sum()
-    return C / U
+    return C / U if U != 0 else 0

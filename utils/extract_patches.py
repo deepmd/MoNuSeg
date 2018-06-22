@@ -40,7 +40,6 @@ def get_data_testing_overlap(test_imgs, patch_height, patch_width, stride_height
 
 
 def recompose(data, N_h, N_w):
-    assert(data.shape[1] == 1 or data.shape[1] == 3)  # check the channel is 1 or 3
     assert(len(data.shape) == 4)
     N_pacth_per_img = N_w * N_h
     assert(data.shape[0] % N_pacth_per_img == 0)
@@ -68,7 +67,6 @@ def recompose(data, N_h, N_w):
 
 def recompose_overlap(preds, img_h, img_w, stride_h, stride_w):
     assert (len(preds.shape)==4)  #4D arrays
-    assert (preds.shape[1]==1 or preds.shape[1]==3)  #check the channel is 1 or 3
     patch_h = preds.shape[2]
     patch_w = preds.shape[3]
     N_patches_h = (img_h-patch_h)//stride_h+1

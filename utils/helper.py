@@ -3,6 +3,7 @@ from skimage import measure
 
 
 def get_spaced_colors(n, cmap=None):
+    n = 1 if n == 0 else n
     if cmap is None:
         max_value = 255**3
         interval = int(max_value/n)
