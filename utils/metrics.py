@@ -83,7 +83,7 @@ class AngularErrorLoss(nn.Module):
     def forward(self, logits, labels, weights):
         probs = F.sigmoid(logits)
         norms = torch.norm(probs, p=2, dim=1, keepdim=True)
-        norms[norms == 0] = 1 # preventing division by zero
+        # norms[norms == 0] = 1 # preventing division by zero
         norms = torch.cat((norms, norms), dim=1)
         probs = probs / norms
         dot_prods = torch.sum(probs * labels, 1)

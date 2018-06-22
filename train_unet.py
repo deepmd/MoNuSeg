@@ -145,15 +145,12 @@ def train_model(model, criterion, optimizer, scheduler = None, save_path = None,
 
 net = UNet(UNET_CONFIG).cuda()
 
-# Observe that all parameters are being optimized
 optimizer = optim.SGD(filter(lambda p:  p.requires_grad, net.parameters()), lr=0.001,
                       momentum=0.9, weight_decay=0.0001)
-
-# Decay LR by a factor of 0.1 every 7 epochs
 #exp_lr_scheduler = lr_scheduler.StepLR(optimizer, step_size=50, gamma=0.1)
 exp_lr_scheduler = lr_scheduler.ReduceLROnPlateau(optimizer, patience=10, verbose=True)
 
 save_path = os.path.join(WEIGHTS_DIR, 'unet-{:.4f}.pth')
-model = train_model(net, criterion_BCE_SoftDice, optimizer, exp_lr_scheduler,
-                    save_path, num_epochs=5)
+net = train_model(net, criterion_BCE_SoftDice, optimizer, exp_lr_scheduler,
+                  save_path, num_epochs=5)
 
