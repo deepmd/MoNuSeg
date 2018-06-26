@@ -88,7 +88,7 @@ def train_model(model, criterion1, criterion2, optimizer, scheduler = None, save
 
                 # statistics
                 running_loss += loss.data * inputs.shape[0]
-                running_dice += dice_value(outputs2.data, targets2.data, [0.2, 0.2, 0.2, 0.1, 0.3]) * inputs.shape[0]
+                running_dice += dice_value(outputs2.data, targets2.data, [0.3, 0.7]) * inputs.shape[0]
 
             epoch_loss = running_loss / dataset_sizes[phase]
             epoch_dice = running_dice / dataset_sizes[phase]
@@ -127,7 +127,7 @@ def criterion1(logits, labels, areas):
     return criterion_AngularError(logits, labels, weights=areas)
 
 def criterion2(logits, labels):
-    return criterion_BCE_SoftDice(logits, labels, dice_w=[0.2, 0.2, 0.2, 0.1, 0.3], use_weight=False)
+    return criterion_BCE_SoftDice(logits, labels, dice_w=[0.3, 0.7], use_weight=False)
 
 print('\n---------------- Training first unet ----------------')
 for param in net.unet2.parameters():

@@ -54,7 +54,7 @@ def get_centroids_vectors_areas(labeled_mask, centroid_size=3):
         for props in region_props:
             y, x = props.centroid
             y, x = int(round(y)), int(round(x))
-            centroids[y-centroid_range:y+centroid_range, x-centroid_range:x+centroid_range] = 1
+            centroids[y-centroid_range:y+centroid_range+1, x-centroid_range:x+centroid_range+1] = 1
             areas += (props.area / total_area) * temp_mask
             vectors[2, :, :] += np.multiply(np.expand_dims(x - np.arange(0, num_rows), axis=1), temp_mask)
             vectors[3, :, :] += np.multiply(np.expand_dims(y - np.arange(0, num_cols), axis=0), temp_mask)
