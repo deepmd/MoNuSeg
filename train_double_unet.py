@@ -43,11 +43,11 @@ dataset_sizes = {x: len(datasets[x]) for x in ['train', 'val']}
 
 ############################# Training the model ################################## 
 
-def train_model(model, criterion1, criterion2, optimizer, scheduler = None, save_path = None, num_epochs = 25):
+def train_model(model, criterion1, criterion2, optimizer, scheduler = None, save_path = None, num_epochs = 25, compare_Loss=False):
     since = time.time()
     
     best_model_wts = copy.deepcopy(model.state_dict())
-    best_dice = 0
+    best_val = 0
 
     for epoch in range(num_epochs):
         print('Epoch {}/{}'.format(epoch, num_epochs - 1))
@@ -88,22 +88,22 @@ def train_model(model, criterion1, criterion2, optimizer, scheduler = None, save
 
                 # statistics
                 running_loss += loss.data * inputs.shape[0]
-                running_dice += (dice_value(outputs2.data[:, 0], targets2.data[:, 0]) +
-                                 dice_value(outputs2.data[:, 1], targets2.data[:, 1])) * inputs.shape[0]
+                running_dice += dice_value(outputs2.data[:, 0], targets2.data[:, 0]) * inputs.shape[0]
 
             epoch_loss = running_loss / dataset_sizes[phase]
             epoch_dice = running_dice / dataset_sizes[phase]
+            epoch_val = epoch_dice if not compare_Loss else (sys.maxsize - epoch_loss.data.cpu().numpy())
 
             print('{} Loss: {:.4f} Dice: {:.4f}'.format(phase, epoch_loss, epoch_dice))
             if phase == 'val' and scheduler is not None:
-                scheduler.step(epoch_dice)
+                scheduler.step(epoch_val)
             
             # deep copy the model
-            if (phase == 'val') and (epoch_dice > best_dice):
-                best_dice = epoch_dice
+            if (phase == 'val') and (epoch_val > best_val):
+                best_val = epoch_val
                 best_model_wts = copy.deepcopy(model.state_dict())
                 if save_path is not None:
-                    path = save_path.format(best_dice)
+                    path = save_path.format(best_val)
                     torch.save(best_model_wts, path)
                     print('Weights of model saved at {}'.format(path))
 
@@ -112,7 +112,7 @@ def train_model(model, criterion1, criterion2, optimizer, scheduler = None, save
     time_elapsed = time.time() - since
     print('Training complete in {:.0f}m {:.0f}s'.format(
         time_elapsed // 60, time_elapsed % 60))
-    print('Best val Dice: {:4f}'.format(best_dice))
+    print('Best Val: {:4f}'.format(best_val))
 
     # load best model weights
     model.load_state_dict(best_model_wts)
@@ -123,14 +123,19 @@ def train_model(model, criterion1, criterion2, optimizer, scheduler = None, save
 
 net = DoubleUNet(DOUBLE_UNET_CONFIG).cuda()
 
+def criterion1(logits, labels, areas):
+    return criterion_AngularError(logits, labels, weights=areas)
+
+def criterion2(logits, labels):
+    return criterion_BCE_SoftDice(logits, labels, dice_w=[0.3, 0.7], use_weight=False)
+
 print('\n---------------- Training first unet ----------------')
 for param in net.unet2.parameters():
     param.requires_grad = False
 optimizer = optim.SGD(filter(lambda p:  p.requires_grad, net.parameters()), lr=0.001,
                       momentum=0.9, weight_decay=0.0001)
 exp_lr_scheduler = lr_scheduler.ReduceLROnPlateau(optimizer, patience=10, verbose=True)
-net = train_model(net, criterion_AngularError, None, optimizer, exp_lr_scheduler,
-                  None, num_epochs=5)
+net = train_model(net, criterion1, None, optimizer, exp_lr_scheduler, None, num_epochs=15, compare_Loss=True)
 
 print('\n---------------- Training second unet ----------------')
 for param in net.unet1.parameters():
@@ -140,15 +145,13 @@ for param in net.unet2.parameters():
 optimizer = optim.SGD(filter(lambda p:  p.requires_grad, net.parameters()), lr=0.001,
                       momentum=0.9, weight_decay=0.0001)
 exp_lr_scheduler = lr_scheduler.ReduceLROnPlateau(optimizer, patience=10, verbose=True)
-net = train_model(net, None, criterion_BCE_SoftDice, optimizer, exp_lr_scheduler,
-                  None, num_epochs=5)
+net = train_model(net, None, criterion2, optimizer, exp_lr_scheduler, None, num_epochs=15)
 
 print('\n---------------- Fine-tuning entire net ----------------')
 for param in net.unet1.parameters():
-    param.requires_grad = False
+    param.requires_grad = True
 save_path = os.path.join(WEIGHTS_DIR, 'double-unet-{:.4f}.pth')
 optimizer = optim.SGD(filter(lambda p:  p.requires_grad, net.parameters()), lr=0.0001,
                       momentum=0.9, weight_decay=0.0001)
 exp_lr_scheduler = lr_scheduler.ReduceLROnPlateau(optimizer, patience=10, verbose=True)
-net = train_model(net, criterion_AngularError, criterion_BCE_SoftDice, optimizer, exp_lr_scheduler,
-                  save_path, num_epochs=5)
+net = train_model(net, criterion1, criterion2, optimizer, exp_lr_scheduler, save_path, num_epochs=25)

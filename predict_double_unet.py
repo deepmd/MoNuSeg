@@ -12,19 +12,17 @@ init.init_torch()
 
 ############################# PostProcessing ##################################
 def post_processing(pred):
-    # masks = pred[0] >= 0.5
-    # centroids = pred[1] >= 0.2
-    # labels = skmorph.watershed(masks, centroids)
-    # return labels
-    inside_pred = pred[0] >= 0.5
-    inside_pred = skmorph.remove_small_holes(inside_pred, inside_pred.shape[0], connectivity=inside_pred.shape[0])
-    labels = skmorph.label(inside_pred, connectivity=1)
-    labels = skmorph.dilation(labels)
+    mask = pred[0] >= 0.5
+    centroids = pred[1] >= 0.5
+    mask = skmorph.remove_small_holes(mask, mask.shape[0], connectivity=mask.shape[0])
+    markers = skmorph.label(centroids, connectivity=1)
+    distance = ndimage.distance_transform_edt(mask)
+    labels = skmorph.watershed(-distance, markers=markers, mask=mask)
     return labels
 
 ########################### Config Predict ##############################
 net = DoubleUNet(DOUBLE_UNET_CONFIG).cuda()
-weight_path = os.path.join(WEIGHTS_DIR, 'double-unet-0.6541.pth')
+weight_path = os.path.join(WEIGHTS_DIR, 'double-unet-0.6726.pth')
 net.load_state_dict(torch.load(weight_path))
 
 def model(img):
@@ -49,6 +47,9 @@ for test_id in TEST_IDS:
 
     plt.imshow(img)
     plt.imshow(colored_labels, alpha=0.5)
+    # centroids = pred[1] >= 0.5
+    # markers = skmorph.label(centroids, connectivity=1)
+    # plt.imshow(markers, alpha=0.5)
     plt.show()
     cv2.waitKey(0)
 

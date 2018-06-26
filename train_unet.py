@@ -13,36 +13,10 @@ init.init_torch()
 ############################# Load Data ##################################
 
 def train_transforms(image, masks):
-    # image = transforms.Resize((image_size, image_size))(image)
-    # mask = transforms.Resize((mask_size, mask_size))(mask)
-    # # Convert PIL image to 3D numpy
-    # image = keras_transforms.img_to_array(image, data_format='channels_last')
-    # mask = keras_transforms.img_to_array(mask, data_format='channels_last')
-    # result = keras_transforms.random_horizontal_flip([image, mask])
-    # result = keras_transforms.random_rotation(result, 360, fill_mode='constant')
-    # result = keras_transforms.random_zoom(result, (1/1.15, 1.15))
-    # result = keras_transforms.random_shift(result, 0.05, 0.05, fill_mode='constant')
-    # image, mask = result[0], result[1]
-    # #image = color_transform.augment_color(image)
-    # multi_mask = mask_processing.mask_to_multimask(mask)
-    # box, label, instance  = mask_processing.multi_mask_to_annotation(multi_mask)
-    # # Convert 3D numpy to PIL image
-    # image = keras_transforms.array_to_img(image, data_format='channels_last', scale=False)
-    # # Convert PIL image to Pytorch tensor
-    # image = transforms.ToTensor()(image)
-    # image = transforms.Normalize([0.03072981, 0.03072981, 0.01682784],
-    #                              [0.17293351, 0.12542403, 0.0771413 ])(image)
     image = transforms.ToTensor()(image)
     return image, masks
 
 def valid_transforms(image, masks):
-    # image = transforms.Resize((image_size, image_size))(image)
-    # mask = transforms.Resize((mask_size, mask_size))(mask)
-    # multi_mask = mask_processing.mask_to_multimask(mask)
-    # box, label, instance  = mask_processing.multi_mask_to_annotation(multi_mask)
-    # image = transforms.ToTensor()(image)
-    # image = transforms.Normalize([0.03072981, 0.03072981, 0.01682784],
-    #                              [0.17293351, 0.12542403, 0.0771413 ])(image)
     image = transforms.ToTensor()(image)
     return image, masks
 
@@ -110,8 +84,7 @@ def train_model(model, criterion, optimizer, scheduler = None, save_path = None,
 
                 # statistics
                 running_loss += loss.data * inputs.shape[0]
-                running_dice += (dice_value(outputs.data[:, 0], targets.data[:, 0]) +
-                                 dice_value(outputs.data[:, 1], targets.data[:, 1])) * inputs.shape[0]
+                running_dice += dice_value(outputs.data[:, 0], targets.data[:, 0]) * inputs.shape[0]
 
             epoch_loss = running_loss / dataset_sizes[phase]
             epoch_dice = running_dice / dataset_sizes[phase]
@@ -145,12 +118,14 @@ def train_model(model, criterion, optimizer, scheduler = None, save_path = None,
 
 net = UNet(UNET_CONFIG).cuda()
 
+def criterion(logits, labels):
+    return criterion_BCE_SoftDice(logits, labels, dice_w=[0.5, 0.5, 0], use_weight=False)
+
 optimizer = optim.SGD(filter(lambda p:  p.requires_grad, net.parameters()), lr=0.001,
                       momentum=0.9, weight_decay=0.0001)
 #exp_lr_scheduler = lr_scheduler.StepLR(optimizer, step_size=50, gamma=0.1)
 exp_lr_scheduler = lr_scheduler.ReduceLROnPlateau(optimizer, patience=10, verbose=True)
 
 save_path = os.path.join(WEIGHTS_DIR, 'unet-{:.4f}.pth')
-net = train_model(net, criterion_BCE_SoftDice, optimizer, exp_lr_scheduler,
-                  save_path, num_epochs=5)
+net = train_model(net, criterion, optimizer, exp_lr_scheduler, save_path, num_epochs=5)
 

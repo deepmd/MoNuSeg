@@ -31,8 +31,8 @@ class MODatasetDouble(MODataset):
             img, masks = self.transform(img, masks)
 
         labels = masks[..., -1]
-        centroids, vectors, areas = helper.get_centroids_vectors_areas(labels)
-        masks = np.stack([mask, centroids], axis=0)
+        centroids, vectors, areas = helper.get_centroids_vectors_areas(labels, centroid_size=5)
+        masks = np.stack([masks[..., 0], centroids], axis=0)
         sample = {'image': img, 'masks': masks, 'vectors': vectors, 'areas': areas}
         return sample
 

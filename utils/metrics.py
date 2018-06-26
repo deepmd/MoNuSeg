@@ -1,14 +1,14 @@
 from common import *
 
 
-def criterion_AngularError(logits, labels, areas):
-    loss = AngularErrorLoss()(logits[:, :2], labels[:, :2], areas) + \
-           AngularErrorLoss()(logits[:, 2:], labels[:, 2:], areas)
+def criterion_AngularError(logits, labels, weights):
+    loss = AngularErrorLoss()(logits[:, :2], labels[:, :2], weights) + \
+           AngularErrorLoss()(logits[:, 2:], labels[:, 2:], weights)
 
     return loss
 
 
-def criterion_BCE_SoftDice(logits, labels, dice_for=(0,1), use_weight=False):
+def criterion_BCE_SoftDice(logits, labels, dice_w=None, use_weight=False):
     # compute weights
     batch_size, C, H, W = labels.shape
     if use_weight:
@@ -32,8 +32,9 @@ def criterion_BCE_SoftDice(logits, labels, dice_for=(0,1), use_weight=False):
         weights = torch.ones(labels.shape, requires_grad=True).cuda(async=True)
 
     loss = WeightedBCELoss2d()(logits, labels, weights)
-    for d in dice_for:
-        loss = loss + WeightedSoftDiceLoss()(logits[:, d], labels[:, d], weights[:, d])
+    for d in range(C):
+        w = 1 if dice_w is None else dice_w[d]
+        loss = loss + w * WeightedSoftDiceLoss()(logits[:, d], labels[:, d], weights[:, d])
 
     return loss
 

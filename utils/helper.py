@@ -34,12 +34,13 @@ def rgb2label(img):
     return labels
 
 
-def get_centroids_vectors_areas(labeled_mask):
+def get_centroids_vectors_areas(labeled_mask, centroid_size=3):
     centroids = np.zeros_like(labeled_mask)
     areas = np.zeros_like(labeled_mask)
     (num_rows, num_cols) = labeled_mask.shape
     total_area = num_rows * num_cols
     vectors = np.zeros((4, num_rows, num_cols))
+    centroid_range = math.floor((centroid_size-1) / 2)
     for label in np.unique(labeled_mask):
         temp_mask = (labeled_mask == label).astype(np.uint8)
 
@@ -47,24 +48,13 @@ def get_centroids_vectors_areas(labeled_mask):
         inds = ndimage.morphology.distance_transform_edt(temp_mask, return_distances=False, return_indices=True)
         vectors[0, :, :] += np.expand_dims(np.arange(0, num_rows), axis=1) - inds[0]
         vectors[1, :, :] += np.expand_dims(np.arange(0, num_cols), axis=0) - inds[1]
-        # if norm:
-        #     vectors[:, :, 0] = vectors[:, :, 0] / (np.linalg.norm(vectors[:, :, 0], axis=0, keepdims=True) + 1e-5)
-        #     vectors[:, :, 1] = vectors[:, :, 1] / (np.linalg.norm(vectors[:, :, 1], axis=0, keepdims=True) + 1e-5)
-
-        # border_vectors = np.array([
-        #     np.expand_dims(np.arange(0, relabeled_mask.shape[0]), axis=1) - inds[0],
-        #     np.expand_dims(np.arange(0, relabeled_mask.shape[1]), axis=0) - inds[1]])
-
-        # border_vector_norm = border_vector / (np.linalg.norm(border_vector, axis=0, keepdims=True) + 1e-5)
-        # res_crop[:, :, 0] = border_vector_norm[0]
-        # res_crop[:, :, 1] = border_vector_norm[1]
 
         # create vectors to centroids of regions
         region_props = measure.regionprops(temp_mask)
         for props in region_props:
             y, x = props.centroid
             y, x = int(round(y)), int(round(x))
-            centroids[y-1:y+1, x-1:x+1] = 1
+            centroids[y-centroid_range:y+centroid_range, x-centroid_range:x+centroid_range] = 1
             areas += (props.area / total_area) * temp_mask
             vectors[2, :, :] += np.multiply(np.expand_dims(x - np.arange(0, num_rows), axis=1), temp_mask)
             vectors[3, :, :] += np.multiply(np.expand_dims(y - np.arange(0, num_cols), axis=0), temp_mask)
