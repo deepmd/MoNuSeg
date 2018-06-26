@@ -13,7 +13,7 @@ init.init_torch()
 ############################# PostProcessing ##################################
 def post_processing_watershed(pred):
     mask = pred[0] >= 0.5
-    centroids = pred[1] >= 0.5
+    centroids = pred[-1] >= 0.5
     mask = skmorph.remove_small_holes(mask, mask.shape[0], connectivity=mask.shape[0])
     markers = skmorph.label(centroids, connectivity=1)
     distance = ndimage.distance_transform_edt(mask)
@@ -23,7 +23,7 @@ def post_processing_watershed(pred):
 
 def post_processing_randomwalk(pred):
     mask = pred[0] >= 0.5
-    centroids = pred[1] >= 0.5
+    centroids = pred[-1] >= 0.5
     mask = skmorph.remove_small_holes(mask, mask.shape[0], connectivity=mask.shape[0])
     markers = skmorph.label(centroids, connectivity=1)
     labels = skseg.random_walker(mask, markers, beta=10, mode='bf')
@@ -57,7 +57,7 @@ for test_id in TEST_IDS:
 
     plt.imshow(img)
     plt.imshow(colored_labels, alpha=0.5)
-    # centroids = pred[1] >= 0.5
+    # centroids = pred[-1] >= 0.5
     # markers = skmorph.label(centroids, connectivity=1)
     # plt.imshow(markers, alpha=0.5)
     plt.show()
