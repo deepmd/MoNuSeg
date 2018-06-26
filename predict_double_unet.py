@@ -5,19 +5,29 @@ from utils.metrics import aggregated_jaccard
 from utils import helper
 from utils.prediction import predict
 from models.double_unet import DoubleUNet
-
+from skimage import segmentation as skseg
 
 init.set_results_reproducible()
 init.init_torch()
 
 ############################# PostProcessing ##################################
-def post_processing(pred):
+def post_processing_watershed(pred):
     mask = pred[0] >= 0.5
     centroids = pred[1] >= 0.5
     mask = skmorph.remove_small_holes(mask, mask.shape[0], connectivity=mask.shape[0])
     markers = skmorph.label(centroids, connectivity=1)
     distance = ndimage.distance_transform_edt(mask)
     labels = skmorph.watershed(-distance, markers=markers, mask=mask)
+    # labels = skmorph.watershed(pred[0], markers=markers, mask=mask)
+    return labels
+
+def post_processing_randomwalk(pred):
+    mask = pred[0] >= 0.5
+    centroids = pred[1] >= 0.5
+    mask = skmorph.remove_small_holes(mask, mask.shape[0], connectivity=mask.shape[0])
+    markers = skmorph.label(centroids, connectivity=1)
+    labels = skseg.random_walker(mask, markers, beta=10, mode='bf')
+    labels = labels * mask
     return labels
 
 ########################### Config Predict ##############################
@@ -35,7 +45,7 @@ for test_id in TEST_IDS:
     img = cv2.imread(img_path)
     img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
     pred = predict(model, img, 256, 256, 64, 64)
-    pred_labels = post_processing(pred)
+    pred_labels = post_processing_watershed(pred)
     num_labels = np.max(pred_labels)
     colored_labels = \
         skimage.color.label2rgb(pred_labels, colors=helper.get_spaced_colors(num_labels)).astype(np.uint8)
