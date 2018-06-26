@@ -33,7 +33,7 @@ def criterion_BCE_SoftDice(logits, labels, dice_w=None, use_weight=False):
 
     loss = WeightedBCELoss2d()(logits, labels, weights)
     for d in range(C):
-        w = 1 if dice_w is None else dice_w[d]
+        w = 1/C if dice_w is None else dice_w[d]
         loss = loss + w * WeightedSoftDiceLoss()(logits[:, d], labels[:, d], weights[:, d])
 
     return loss
@@ -91,7 +91,16 @@ class AngularErrorLoss(nn.Module):
         return loss
 
 
-def dice_value(logits, labels):
+def dice_value(logits, labels, dice_w=None):
+    C = labels.shape[1]
+    dice = 0
+    for d in range(C):
+        w = 1/C if dice_w is None else dice_w[d]
+        dice = dice + w * dice_value_1d(logits[:, d], labels[:, d])
+    return dice
+
+
+def dice_value_1d(logits, labels):
     probs = F.sigmoid(logits)
     num   = labels.shape[0]
     m1    = probs.view(num,-1)

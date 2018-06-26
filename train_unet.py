@@ -84,7 +84,7 @@ def train_model(model, criterion, optimizer, scheduler = None, save_path = None,
 
                 # statistics
                 running_loss += loss.data * inputs.shape[0]
-                running_dice += dice_value(outputs.data[:, 0], targets.data[:, 0]) * inputs.shape[0]
+                running_dice += dice_value(outputs.data, targets.data, [0.5, 0.5, 0]) * inputs.shape[0]
 
             epoch_loss = running_loss / dataset_sizes[phase]
             epoch_dice = running_dice / dataset_sizes[phase]

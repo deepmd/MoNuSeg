@@ -19,20 +19,27 @@ class MODatasetDouble(MODataset):
         mask = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE) / 255
         labels_path = os.path.join(self.root_dir, LABELS_DIR, self.ids[idx]+'.npy')
         labels = np.load(labels_path)
+        mask_1 = skmorph.binary_erosion(mask, skmorph.disk(2))
+        mask_3 = skmorph.binary_erosion(mask, skmorph.disk(4))
+        mask_5 = skmorph.binary_erosion(mask, skmorph.disk(6))
 
         if self.patch_coords is not None:
             y1, x1, y2, x2 = self.patch_coords[idx]
             img = img[y1:y2, x1:x2, :]
             mask = mask[y1:y2, x1:x2]
+            mask_1 = mask_1[y1:y2, x1:x2]
+            mask_3 = mask_3[y1:y2, x1:x2]
+            mask_5 = mask_5[y1:y2, x1:x2]
             labels = labels[y1:y2, x1:x2]
 
-        masks = np.stack([mask, labels], axis=-1)
+        masks = np.stack([mask, mask_1, mask_3, mask_5, labels], axis=-1)
         if self.transform is not None:
             img, masks = self.transform(img, masks)
 
         labels = masks[..., -1]
         centroids, vectors, areas = helper.get_centroids_vectors_areas(labels, centroid_size=5)
-        masks = np.stack([masks[..., 0], centroids], axis=0)
+        masks[..., -1] = centroids
+        masks = np.moveaxis(masks, -1, 0)
         sample = {'image': img, 'masks': masks, 'vectors': vectors, 'areas': areas}
         return sample
 
@@ -55,7 +62,7 @@ def run_check_dataset():
         plt.rcParams['axes.facecolor'] = 'black'
         plt.imshow(sample['image'])
         plt.imshow(sample['masks'][0], cmap=in_cmap, alpha=0.5)
-        plt.imshow(sample['masks'][1], cmap=bn_cmap, alpha=0.5)
+        plt.imshow(sample['masks'][-1], cmap=bn_cmap, alpha=0.5)
         plt.show()
         cv2.waitKey(0)
 
