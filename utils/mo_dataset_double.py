@@ -2,6 +2,7 @@ from common import *
 from consts import *
 from utils.mo_dataset import MODataset
 from utils import helper
+from utils import augmentation
 
 
 class MODatasetDouble(MODataset):
@@ -44,13 +45,33 @@ class MODatasetDouble(MODataset):
         return sample
 
 
-#-----------------------------------------------------------------------
-def run_check_dataset():
+# -----------------------------------------------------------------------
+def train_transforms(image, masks):
+    seq = augmentation.get_train_augmenters_seq()
+    hooks_masks = augmentation.get_train_masks_augmenters_deactivator()
+
+    # Convert the stochastic sequence of augmenters to a deterministic one.
+    # The deterministic sequence will always apply the exactly same effects to the images.
+    seq_det = seq.to_deterministic()  # call this for each batch again, NOT only once at the start
+    image_aug = seq_det.augment_images([image])
+    masks_aug = seq_det.augment_images([masks], hooks=hooks_masks)[0]
+
+    image_aug_tensor = transforms.ToTensor()(image_aug[0].copy())
+    # image_aug_tensor = transforms.Normalize([0.03072981, 0.03072981, 0.01682784],
+    #                              [0.17293351, 0.12542403, 0.0771413 ])(image_aug_tensor)
+
+    masks_aug[:, :, :-1] = (masks_aug[:, :, :-1] >= MASK_THRESHOLD).astype(np.uint8)
+
+    return image_aug_tensor, masks_aug
+
+
+def run_check_dataset(transform=None):
     ids = ['TCGA-18-5592-01Z-00-DX1']
-    dataset = MODatasetDouble('../../MoNuSeg Training Data', ids, num_patches=2, patch_size=256)
+    dataset = MODatasetDouble('../../MoNuSeg Training Data', ids, num_patches=10, patch_size=256, transform=transform)
 
     for n in range(len(dataset)):
         sample = dataset[n]
+        img = sample['image'] if transform is None else np.moveaxis(sample['image'].numpy(), 0, -1)
         in_cmap = colors.ListedColormap(['black', '#7CFC00'])
         in_cmap = in_cmap(np.arange(2))
         in_cmap[:, -1] = np.linspace(0, 1, 2)
@@ -60,7 +81,7 @@ def run_check_dataset():
         bn_cmap[:, -1] = np.linspace(0, 1, 2)
         bn_cmap = colors.ListedColormap(bn_cmap)
         plt.rcParams['axes.facecolor'] = 'black'
-        plt.imshow(sample['image'])
+        plt.imshow(img)
         plt.imshow(sample['masks'][0], cmap=in_cmap, alpha=0.5)
         plt.imshow(sample['masks'][-1], cmap=bn_cmap, alpha=0.5)
         plt.show()
@@ -70,5 +91,5 @@ def run_check_dataset():
 # main #################################################################
 if __name__ == '__main__':
     print('%s: calling main function ... ' % os.path.basename(__file__))
-    run_check_dataset()
+    run_check_dataset(train_transforms)
     print('\nsuccess!')
