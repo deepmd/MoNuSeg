@@ -64,10 +64,10 @@ def train_transforms(image, masks):
     # Convert the stochastic sequence of augmenters to a deterministic one.
     # The deterministic sequence will always apply the exactly same effects to the images.
     seq_det = seq.to_deterministic()  # call this for each batch again, NOT only once at the start
-    image_aug = seq_det.augment_images([image])
+    image_aug = seq_det.augment_images([image])[0]
     masks_aug = seq_det.augment_images([masks], hooks=hooks_masks)[0]
 
-    image_aug_tensor = transforms.ToTensor()(image_aug[0].copy())
+    image_aug_tensor = transforms.ToTensor()(image_aug.copy())
     # image_aug_tensor = transforms.Normalize([0.03072981, 0.03072981, 0.01682784],
     #                              [0.17293351, 0.12542403, 0.0771413 ])(image_aug_tensor)
 

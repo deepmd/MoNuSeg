@@ -3,6 +3,8 @@ from consts import *
 from utils.mo_dataset import MODataset
 from utils import helper
 from utils import augmentation
+import warnings
+warnings.simplefilter(action='ignore', category=FutureWarning)
 
 
 class MODatasetDouble(MODataset):
@@ -33,36 +35,44 @@ class MODatasetDouble(MODataset):
             # mask_5 = mask_5[y1:y2, x1:x2]
             labels = labels[y1:y2, x1:x2]
 
-        masks = np.stack([mask, labels], axis=-1)
+        labels, _, _ = skimage.segmentation.relabel_sequential(labels)
+        labels = [(labels == label) for label in range(1, len(np.unique(labels)))]
+        labels = np.stack(labels, axis=-1).astype(np.uint8)
         if self.transform is not None:
-            img, masks = self.transform(img, masks)
+            img, mask, labels = self.transform(img, mask, labels)
 
-        labels = masks[..., -1]
-        centroids, vectors, areas = helper.get_centroids_vectors_areas(labels, centroid_size=5)
-        masks[..., -1] = centroids
-        masks = np.moveaxis(masks, -1, 0)
+        centroids, vectors, areas = helper.get_centroids_vectors_areas(labels, centroid_size=3)
+        masks = np.stack([mask, centroids], axis=0)
         sample = {'image': img, 'masks': masks, 'vectors': vectors, 'areas': areas}
+
         return sample
 
 
 # -----------------------------------------------------------------------
-def train_transforms(image, masks):
+def train_transforms(image, mask, labels):
     seq = augmentation.get_train_augmenters_seq()
     hooks_masks = augmentation.get_train_masks_augmenters_deactivator()
 
     # Convert the stochastic sequence of augmenters to a deterministic one.
     # The deterministic sequence will always apply the exactly same effects to the images.
     seq_det = seq.to_deterministic()  # call this for each batch again, NOT only once at the start
-    image_aug = seq_det.augment_images([image])
-    masks_aug = seq_det.augment_images([masks], hooks=hooks_masks)[0]
+    image_aug = seq_det.augment_images([image])[0]
+    mask_aug = seq_det.augment_images([mask], hooks=hooks_masks)[0]
+    labels_aug = seq_det.augment_images([labels], hooks=hooks_masks)[0]
 
-    image_aug_tensor = transforms.ToTensor()(image_aug[0].copy())
+    mask_aug = (mask_aug >= MASK_THRESHOLD).astype(np.uint8)
+    for index in range(labels_aug.shape[-1]):
+        labels_aug[..., index] = (labels_aug[..., index] > 0).astype(np.uint8)
+
+    # merge_labels = np.max(masks_aug[:, :, 1:], axis=-1, keepdims=False)
+    # merge_labels, _, _ = segmentation.relabel_sequential(merge_labels)
+    # mask_labels_aug = np.stack([masks_aug[:, :, 0], merge_labels], axis=-1)
+
+    image_aug_tensor = transforms.ToTensor()(image_aug.copy())
     # image_aug_tensor = transforms.Normalize([0.03072981, 0.03072981, 0.01682784],
     #                              [0.17293351, 0.12542403, 0.0771413 ])(image_aug_tensor)
 
-    masks_aug[:, :, :-1] = (masks_aug[:, :, :-1] >= MASK_THRESHOLD).astype(np.uint8)
-
-    return image_aug_tensor, masks_aug
+    return image_aug_tensor, mask_aug, labels_aug
 
 
 def run_check_dataset(transform=None):

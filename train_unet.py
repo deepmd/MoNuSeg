@@ -19,10 +19,10 @@ def train_transforms(image, masks):
     # Convert the stochastic sequence of augmenters to a deterministic one.
     # The deterministic sequence will always apply the exactly same effects to the images.
     seq_det = seq.to_deterministic()  # call this for each batch again, NOT only once at the start
-    image_aug = seq_det.augment_images([image])
+    image_aug = seq_det.augment_images([image])[0]
     masks_aug = seq_det.augment_images([masks], hooks=hooks_masks)[0]
 
-    image_aug_tensor = transforms.ToTensor()(image_aug[0].copy())
+    image_aug_tensor = transforms.ToTensor()(image_aug.copy())
     # image_aug_tensor = transforms.Normalize([0.03072981, 0.03072981, 0.01682784],
     #                              [0.17293351, 0.12542403, 0.0771413 ])(image_aug_tensor)
 
@@ -46,7 +46,7 @@ ids_train, ids_valid = train_test_split(train_ids, test_size=0.2, random_state=4
 ids = {'train': ids_train, 'val': ids_valid}
 datasets = {x: MODataset(INPUT_DIR,
                          ids[x],
-                         num_patches=20,
+                         num_patches=500,
                          patch_size=256,
                          transform=trans[x])
            for x in ['train', 'val']}
@@ -146,5 +146,5 @@ optimizer = optim.SGD(filter(lambda p:  p.requires_grad, net.parameters()), lr=0
 exp_lr_scheduler = lr_scheduler.ReduceLROnPlateau(optimizer, patience=10, verbose=True)
 
 save_path = os.path.join(WEIGHTS_DIR, 'unet-{:.4f}.pth')
-net = train_model(net, criterion, optimizer, exp_lr_scheduler, save_path, num_epochs=5)
+net = train_model(net, criterion, optimizer, exp_lr_scheduler, save_path, num_epochs=30)
 

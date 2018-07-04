@@ -12,31 +12,34 @@ init.set_results_reproducible()
 init.init_torch()
 
 ############################# Load Data ##################################
-def train_transforms(image, masks):
+def train_transforms(image, mask, labels):
     seq = augmentation.get_train_augmenters_seq()
     hooks_masks = augmentation.get_train_masks_augmenters_deactivator()
 
     # Convert the stochastic sequence of augmenters to a deterministic one.
     # The deterministic sequence will always apply the exactly same effects to the images.
     seq_det = seq.to_deterministic()  # call this for each batch again, NOT only once at the start
-    image_aug = seq_det.augment_images([image])
-    masks_aug = seq_det.augment_images([masks], hooks=hooks_masks)[0]
+    image_aug = seq_det.augment_images([image])[0]
+    mask_aug = seq_det.augment_images([mask], hooks=hooks_masks)[0]
+    labels_aug = seq_det.augment_images([labels], hooks=hooks_masks)[0]
 
-    image_aug_tensor = transforms.ToTensor()(image_aug[0].copy())
+    mask_aug = (mask_aug >= MASK_THRESHOLD).astype(np.uint8)
+    for index in range(labels_aug.shape[-1]):
+        labels_aug[..., index] = (labels_aug[..., index] > 0).astype(np.uint8)
+
+    image_aug_tensor = transforms.ToTensor()(image_aug.copy())
     # image_aug_tensor = transforms.Normalize([0.03072981, 0.03072981, 0.01682784],
     #                              [0.17293351, 0.12542403, 0.0771413 ])(image_aug_tensor)
 
-    masks_aug[:, :, :-1] = (masks_aug[:, :, :-1] >= MASK_THRESHOLD).astype(np.uint8)
-
-    return image_aug_tensor, masks_aug
+    return image_aug_tensor, mask_aug, labels_aug
 
 
-def valid_transforms(image, masks):
+def valid_transforms(image, mask, labels):
     img_tensor = transforms.ToTensor()(image.copy())
     # img_tensor = transforms.Normalize([0.03072981, 0.03072981, 0.01682784],
     #                              [0.17293351, 0.12542403, 0.0771413 ])(img_tensor)
 
-    return img_tensor, masks
+    return img_tensor, mask, labels
 
 
 trans = {'train': train_transforms, 'val': valid_transforms}
