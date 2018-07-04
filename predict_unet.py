@@ -3,7 +3,7 @@ from consts import *
 from utils import init
 from utils import helper
 from utils.prediction import predict
-from utils.metrics import aggregated_jaccard
+from utils.metrics import aggregated_jaccard, dice_index
 from models.unet import UNet
 
 init.set_results_reproducible()
@@ -21,10 +21,11 @@ def post_processing(pred):
 
 ########################### Config Predict ##############################
 net = UNet(UNET_CONFIG).cuda()
-weight_path = os.path.join(WEIGHTS_DIR, 'unet-0.7819.pth')
+weight_path = os.path.join(WEIGHTS_DIR, 'unet-0.4974.pth')
 net.load_state_dict(torch.load(weight_path))
 
 sum_agg_jac = 0
+sum_dice = 0
 for test_id in TEST_IDS:
     img_path = os.path.join(INPUT_DIR, IMAGES_DIR, test_id+'.tif')
     img = cv2.imread(img_path)
@@ -54,5 +55,12 @@ for test_id in TEST_IDS:
     sum_agg_jac += agg_jac
     print('{}\'s Aggregated Jaccard Index: {:.4f}'.format(test_id, agg_jac))
 
+    masks_path = os.path.join(INPUT_DIR, MASKS_DIR, test_id+'.png')
+    gt_masks = cv2.imread(masks_path, cv2.IMREAD_GRAYSCALE) / 255
+    dice = dice_index(pred[0], gt_masks)
+    sum_dice += dice
+    print('{}\'s Dice Index: {:.4f}'.format(test_id, dice))
+
 print('--------------------------------------')
 print('Mean Aggregated Jaccard Index: {:.4f}'.format(sum_agg_jac/len(TEST_IDS)))
+print('Mean Dice Index: {:.4f}'.format(sum_dice/len(TEST_IDS)))

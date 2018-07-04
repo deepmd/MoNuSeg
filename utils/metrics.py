@@ -111,6 +111,14 @@ def dice_value_1d(logits, labels):
     return score.sum()/num
 
 
+def dice_index(pred_labels, gt_labels):
+    m1    = pred_labels.reshape(-1)
+    m2    = gt_labels.reshape(-1)
+    intersection = (m1 * m2)
+    smooth = 1
+    return (2. * intersection.sum() + smooth) / (m1.sum() + m2.sum() + smooth)
+
+
 def aggregated_jaccard(pred_labels, gt_labels):
     C = 0
     U = 0
