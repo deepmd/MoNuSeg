@@ -50,10 +50,17 @@ def create_masks():
         for i, region in enumerate(regions):
             poly = Polygon(region)
             temp_mask = np.zeros(img.shape[:-1])
-            fill_inside(poly, temp_mask, int(poly.area))
+            area = poly.area
+            while area in np.unique(labeled_mask_by_area):
+                area += .25
+            fill_inside(poly, temp_mask, area)
             labeled_mask_by_area = np.maximum.reduce([labeled_mask_by_area, temp_mask])
 
-        relabeled_mask, _, _ = segmentation.relabel_sequential(labeled_mask_by_area)
+        relabeled_mask = np.zeros_like(labeled_mask_by_area, dtype=int)
+        for index, value in enumerate(np.unique(labeled_mask_by_area)):
+                relabeled_mask[labeled_mask_by_area == value] = index
+
+        # relabeled_mask, _, _ = segmentation.relabel_sequential(labeled_mask_by_area)
 
         mask = (relabeled_mask > 0).astype(np.uint8)
 

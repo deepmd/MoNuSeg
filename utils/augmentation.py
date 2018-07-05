@@ -40,7 +40,7 @@ def get_train_augmenters_seq():
                 shear=(-16, 16),
                 order=[0, 1],
                 cval=0,
-                mode=ia.ALL
+                mode='edge'
             )),
 
             # In some images move pixels locally around (with random

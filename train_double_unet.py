@@ -49,7 +49,7 @@ ids_train, ids_valid = train_test_split(train_ids, test_size=0.2, random_state=4
 ids = {'train': ids_train, 'val': ids_valid}
 datasets = {x: MODatasetDouble(INPUT_DIR,
                                ids[x],
-                               num_patches=20,
+                               num_patches=500,
                                patch_size=256,
                                transform=trans[x])
            for x in ['train', 'val']}
@@ -157,7 +157,7 @@ for param in net.unet2.parameters():
 optimizer = optim.SGD(filter(lambda p:  p.requires_grad, net.parameters()), lr=0.001,
                       momentum=0.9, weight_decay=0.0001)
 exp_lr_scheduler = lr_scheduler.ReduceLROnPlateau(optimizer, patience=10, verbose=True)
-net = train_model(net, criterion1, None, optimizer, exp_lr_scheduler, None, num_epochs=15, compare_Loss=True)
+net = train_model(net, criterion1, None, optimizer, exp_lr_scheduler, None, num_epochs=20, compare_Loss=True)
 
 print('\n---------------- Training second unet ----------------')
 for param in net.unet1.parameters():
@@ -167,13 +167,13 @@ for param in net.unet2.parameters():
 optimizer = optim.SGD(filter(lambda p:  p.requires_grad, net.parameters()), lr=0.001,
                       momentum=0.9, weight_decay=0.0001)
 exp_lr_scheduler = lr_scheduler.ReduceLROnPlateau(optimizer, patience=10, verbose=True)
-net = train_model(net, None, criterion2, optimizer, exp_lr_scheduler, None, num_epochs=15)
+net = train_model(net, None, criterion2, optimizer, exp_lr_scheduler, None, num_epochs=20)
 
 print('\n---------------- Fine-tuning entire net ----------------')
 for param in net.unet1.parameters():
     param.requires_grad = True
 save_path = os.path.join(WEIGHTS_DIR, 'double-unet-{:.4f}.pth')
-optimizer = optim.SGD(filter(lambda p:  p.requires_grad, net.parameters()), lr=0.0001,
+optimizer = optim.SGD(filter(lambda p:  p.requires_grad, net.parameters()), lr=0.001,
                       momentum=0.9, weight_decay=0.0001)
 exp_lr_scheduler = lr_scheduler.ReduceLROnPlateau(optimizer, patience=10, verbose=True)
-net = train_model(net, criterion1, criterion2, optimizer, exp_lr_scheduler, save_path, num_epochs=25)
+net = train_model(net, criterion1, criterion2, optimizer, exp_lr_scheduler, save_path, num_epochs=30)
