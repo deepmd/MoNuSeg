@@ -102,7 +102,7 @@ def train_model(model, criterion, optimizer, scheduler = None, save_path = None,
                 monitor.update('loss', loss.data, inputs.shape[0])
                 monitor.update('dice', dice.data, inputs.shape[0])
                 stream.set_description(
-                    f'epoch: {epoch+1} | '
+                    f'epoch {epoch+1}/{num_epochs} | '
                     f'{phase}: {monitor}'
                 )
             stream.close()

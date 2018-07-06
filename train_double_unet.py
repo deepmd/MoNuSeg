@@ -54,7 +54,7 @@ datasets = {x: MODatasetDouble(INPUT_DIR,
                                transform=trans[x])
            for x in ['train', 'valid']}
 dataloaders = {x: torch.utils.data.DataLoader(datasets[x],
-                                              batch_size=4,
+                                              batch_size=8,
                                               shuffle=True, 
                                               num_workers=8,
                                               pin_memory=True)
@@ -107,7 +107,7 @@ def train_model(model, criterion1, criterion2, optimizer, scheduler = None, save
                 monitor.update('loss', loss.data, inputs.shape[0])
                 monitor.update('dice', dice.data, inputs.shape[0])
                 stream.set_description(
-                    f'epoch: {epoch+1} | '
+                    f'epoch {epoch+1}/{num_epochs} | '
                     f'{phase}: {monitor}'
                 )
             stream.close()
