@@ -4,7 +4,7 @@ from common import *
 from consts import *
 from utils import init
 from utils.mo_dataset import MODataset
-from utils.metrics import criterion_BCE_SoftDice, dice_value
+from utils.metrics import criterion_BCE_SoftDice, dice_value, MetricMonitor
 from utils import augmentation
 from models.unet import UNet
 
@@ -39,51 +39,45 @@ def valid_transforms(image, masks):
     return img_tensor, masks
 
 
-trans = {'train': train_transforms, 'val': valid_transforms}
+trans = {'train': train_transforms, 'valid': valid_transforms}
 all_ids = [os.path.splitext(f)[0] for f in os.listdir(os.path.join(INPUT_DIR, IMAGES_DIR))]
 train_ids = [i for i in all_ids if i not in TEST_IDS]
 ids_train, ids_valid = train_test_split(train_ids, test_size=0.2, random_state=42)
-ids = {'train': ids_train, 'val': ids_valid}
+ids = {'train': ids_train, 'valid': ids_valid}
 datasets = {x: MODataset(INPUT_DIR,
                          ids[x],
                          num_patches=500,
                          patch_size=256,
                          transform=trans[x])
-           for x in ['train', 'val']}
+           for x in ['train', 'valid']}
 dataloaders = {x: torch.utils.data.DataLoader(datasets[x],
                                               batch_size=8,
                                               shuffle=True, 
                                               num_workers=8,
                                               pin_memory=True)
-              for x in ['train', 'val']}
-dataset_sizes = {x: len(datasets[x]) for x in ['train', 'val']}
+              for x in ['train', 'valid']}
+dataset_sizes = {x: len(datasets[x]) for x in ['train', 'valid']}
 
 
 
 ############################# Training the model ################################## 
 
-def train_model(model, criterion, optimizer, scheduler = None, save_path = None, num_epochs = 25):
+def train_model(model, criterion, optimizer, scheduler = None, save_path = None, num_epochs = 25, iter_size = 1):
     since = time.time()
     
     best_model_wts = copy.deepcopy(model.state_dict())
     best_dice = 0
+    monitor = MetricMonitor()
 
     for epoch in range(num_epochs):
-        print('Epoch {}/{}'.format(epoch, num_epochs - 1))
-        print('-' * 10)
-
         # Each epoch has a training and validation phase
-        for phase in ['train', 'val']:
-            if phase == 'train':
-                model.train(True)  # Set model to training mode
-            else:
-                model.train(False)  # Set model to evaluate mode
-
-            running_loss = 0.0
-            running_dice = 0.0
-                        
+        for phase in ['train', 'valid']:
+            model.train(phase == 'train')  # Set model to training/evaluate mode
+            optimizer.zero_grad()
+            monitor.reset()
+            stream = tqdm(dataloaders[phase])
             # Iterate over data.
-            for samples in dataloaders[phase]:
+            for i, samples in enumerate(stream, start=1):
                 # get the inputs
                 inputs = torch.tensor(samples['image'], requires_grad=True).cuda(async=True)
                 # get the targets
@@ -99,21 +93,28 @@ def train_model(model, criterion, optimizer, scheduler = None, save_path = None,
                 # backward + optimize only if in training phase
                 if phase == 'train':
                     loss.backward()
-                    optimizer.step()
+                    if i % iter_size == 0 or i == len(dataloaders[phase]):
+                        optimizer.step()
+                        optimizer.zero_grad()
 
                 # statistics
-                running_loss += loss.data * inputs.shape[0]
-                running_dice += dice_value(outputs.data, targets.data, [0.5, 0.5, 0]) * inputs.shape[0]
+                dice = dice_value(outputs.data, targets.data, [0.5, 0.5, 0])
+                monitor.update('loss', loss.data, inputs.shape[0])
+                monitor.update('dice', dice.data, inputs.shape[0])
+                stream.set_description(
+                    f'epoch: {epoch+1} | '
+                    f'{phase}: {monitor}'
+                )
+            stream.close()
 
-            epoch_loss = running_loss / dataset_sizes[phase]
-            epoch_dice = running_dice / dataset_sizes[phase]
+            epoch_loss = monitor.get_avg('loss')
+            epoch_dice = monitor.get_avg('dice')
 
-            print('{} Loss: {:.4f} Dice: {:.4f}'.format(phase, epoch_loss, epoch_dice))
-            if phase == 'val' and scheduler is not None:
+            if phase == 'valid' and scheduler is not None:
                 scheduler.step(epoch_dice)
             
             # deep copy the model
-            if (phase == 'val') and (epoch_dice > best_dice):
+            if (phase == 'valid') and (epoch_dice > best_dice):
                 best_dice = epoch_dice
                 best_model_wts = copy.deepcopy(model.state_dict())
                 if save_path is not None:
@@ -124,9 +125,9 @@ def train_model(model, criterion, optimizer, scheduler = None, save_path = None,
         print()
 
     time_elapsed = time.time() - since
-    print('Training complete in {:.0f}m {:.0f}s'.format(
+    tqdm.write('Training complete in {:.0f}m {:.0f}s'.format(
         time_elapsed // 60, time_elapsed % 60))
-    print('Best val Dice: {:4f}'.format(best_dice))
+    tqdm.write('Best val Dice: {:.4f}'.format(best_dice))
 
     # load best model weights
     model.load_state_dict(best_model_wts)

@@ -31,7 +31,7 @@ def post_processing_randomwalk(pred):
     return labels
 
 ########################### Config Predict ##############################
-net = DoubleUNet(DOUBLE_UNET_CONFIG).cuda()
+net = DoubleUNet(DOUBLE_UNET_CONFIG_1).cuda()
 weight_path = os.path.join(WEIGHTS_DIR, 'double-unet-0.4502.pth')
 net.load_state_dict(torch.load(weight_path))
 
@@ -59,8 +59,7 @@ for test_id in TEST_IDS:
     # plt.imshow(img)
     # plt.imshow(colored_labels, alpha=0.5)
     # centroids = pred[-1] >= 0.5
-    # markers = skmorph.label(centroids, connectivity=1)
-    # plt.imshow(markers, alpha=0.5)
+    # plt.imshow(centroids, alpha=0.5)
     # plt.show()
     # cv2.waitKey(0)
 
