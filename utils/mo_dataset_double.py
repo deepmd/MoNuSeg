@@ -1,27 +1,57 @@
 from common import *
 from consts import *
-from utils.mo_dataset import MODataset
 from utils import helper
 from utils import augmentation
 import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
 
-class MODatasetDouble(MODataset):
+class MODatasetDouble(Dataset):
     """Multi Organ Dataset for Double UNet"""
 
     def __init__(self, root_dir, ids, num_patches=None, patch_size=None, transform=None):
-        super(MODatasetDouble, self).__init__(root_dir, ids, num_patches, patch_size, transform)
+        self.root_dir = root_dir
+        self.ids = ids
+        self.transform = transform
+        self.patch_coords = None
+        if num_patches is not None and patch_size is not None:
+            self.ids = np.random.permutation(np.repeat(ids, num_patches))
+            patch_info_path = os.path.join(root_dir, 'patches-{:d}-{:d}.csv'.format(num_patches, patch_size))
+            if os.path.isfile(patch_info_path):
+                self.patch_coords = np.genfromtxt(patch_info_path, delimiter=',', dtype=np.int)
+                self.patch_coords = self.patch_coords if self.patch_coords.ndim > 1 else np.expand_dims(
+                    self.patch_coords, axis=0)
+            else:
+                img_path = os.path.join(self.root_dir, IMAGES_DIR, self.ids[0]+'.tif')
+                img = cv2.imread(img_path)
+                self.patch_coords = np.zeros((len(self.ids), 4), dtype=np.int)
+                self.patch_coords[:, 0] = np.random.randint(0, img.shape[:-1][0] - patch_size, (len(self.ids)))
+                self.patch_coords[:, 1] = np.random.randint(0, img.shape[:-1][1] - patch_size, (len(self.ids)))
+                self.patch_coords[:, 2] = self.patch_coords[:, 0] + patch_size
+                self.patch_coords[:, 3] = self.patch_coords[:, 1] + patch_size
+                np.savetxt(patch_info_path, self.patch_coords, delimiter=',', fmt='%d')
+        self.images = {}
+        self.masks = {}
+        self.labels = {}
+        for img_id in ids:
+            img_path = os.path.join(self.root_dir, IMAGES_DIR, img_id+'.tif')
+            img = cv2.imread(img_path)
+            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+            self.images[img_id] = img
+            mask_path = os.path.join(self.root_dir, MASKS_DIR, img_id+'.png')
+            mask = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE) / 255
+            self.masks[img_id] = mask
+            labels_path = os.path.join(self.root_dir, LABELS_DIR, img_id+'.npy')
+            labels = np.load(labels_path)
+            self.labels[img_id] = labels
+
+    def __len__(self):
+        return len(self.ids)
 
     def __getitem__(self, idx):
-        img_path = os.path.join(self.root_dir, IMAGES_DIR, self.ids[idx]+'.tif')
-        img = cv2.imread(img_path)
-        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-
-        mask_path = os.path.join(self.root_dir, MASKS_DIR, self.ids[idx]+'.png')
-        mask = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE) / 255
-        labels_path = os.path.join(self.root_dir, LABELS_DIR, self.ids[idx]+'.npy')
-        labels = np.load(labels_path)
+        img = self.images[self.ids[idx]]
+        mask = self.masks[self.ids[idx]]
+        labels = self.labels[self.ids[idx]]
         # mask_1 = skmorph.binary_erosion(mask, skmorph.disk(1))
         # mask_3 = skmorph.binary_erosion(mask, skmorph.disk(3))
         # mask_5 = skmorph.binary_erosion(mask, skmorph.disk(5))

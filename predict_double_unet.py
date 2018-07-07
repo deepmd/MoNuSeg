@@ -31,8 +31,8 @@ def post_processing_randomwalk(pred):
     return labels
 
 ########################### Config Predict ##############################
-net = DoubleUNet(DOUBLE_UNET_CONFIG_1).cuda()
-weight_path = os.path.join(WEIGHTS_DIR, 'double-unet-0.4502.pth')
+net = DoubleUNet(DOUBLE_UNET_CONFIG_2).cuda()
+weight_path = os.path.join(WEIGHTS_DIR, 'double-unet-0.4617.pth')
 net.load_state_dict(torch.load(weight_path))
 
 def model(img):

@@ -79,7 +79,7 @@ def train_model(model, criterion1, criterion2, optimizer, scheduler = None, save
             model.train(phase == 'train')  # Set model to training/evaluate mode
             optimizer.zero_grad()
             monitor.reset()
-            stream = tqdm(dataloaders[phase])
+            stream = tqdm(dataloaders[phase], file=sys.stdout)
             # Iterate over data.
             for i, samples in enumerate(stream, start=1):
                 # get the inputs
@@ -131,9 +131,9 @@ def train_model(model, criterion1, criterion2, optimizer, scheduler = None, save
         print()
 
     time_elapsed = time.time() - since
-    tqdm.write('Training complete in {:.0f}m {:.0f}s'.format(
+    print('Training complete in {:.0f}m {:.0f}s'.format(
         time_elapsed // 60, time_elapsed % 60))
-    tqdm.write('Best Val: {:.4f}'.format(best_val))
+    print('Best Val: {:.4f}'.format(best_val))
 
     # load best model weights
     model.load_state_dict(best_model_wts)
