@@ -31,8 +31,8 @@ def post_processing_randomwalk(pred):
     return labels
 
 ########################### Config Predict ##############################
-net = DoubleUNet(DOUBLE_UNET_CONFIG_2).cuda()
-weight_path = os.path.join(WEIGHTS_DIR, 'double-unet-0.4617.pth')
+net = DoubleUNet(DOUBLE_UNET_CONFIG_3).cuda()
+weight_path = os.path.join(WEIGHTS_DIR, 'double-unet(3)-0.3794.pth')
 net.load_state_dict(torch.load(weight_path))
 
 def model(img):
@@ -50,8 +50,8 @@ for test_id in TEST_IDS:
     num_labels = np.max(pred_labels)
     colored_labels = \
         skimage.color.label2rgb(pred_labels, colors=helper.get_spaced_colors(num_labels)).astype(np.uint8)
-    pred_labels_path = os.path.join(OUTPUT_DIR, 'DUNET', LABELS_DIR, test_id)
-    pred_colored_labels_path = os.path.join(OUTPUT_DIR, 'DUNET', test_id+'.png')
+    pred_labels_path = os.path.join(OUTPUT_DIR, 'DUNET(3)', LABELS_DIR, test_id)
+    pred_colored_labels_path = os.path.join(OUTPUT_DIR, 'DUNET(3)', test_id+'.png')
     np.save(pred_labels_path, pred_labels)
     bgr_labels = cv2.cvtColor(colored_labels, cv2.COLOR_RGB2BGR)
     cv2.imwrite(pred_colored_labels_path, bgr_labels)

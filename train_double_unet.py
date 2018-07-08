@@ -142,7 +142,7 @@ def train_model(model, criterion1, criterion2, optimizer, scheduler = None, save
 
 ########################### Config Train ##############################
 
-net = DoubleUNet(DOUBLE_UNET_CONFIG_2).cuda()
+net = DoubleUNet(DOUBLE_UNET_CONFIG_3).cuda()
 
 def criterion1(logits, labels, areas):
     return criterion_AngularError(logits, labels, weights=areas)
