@@ -140,8 +140,8 @@ def run_check_vectors(transform=None, num_vectors=10):
                    color=['b'])
 
         plt.quiver(*(y_origins, x_origins),
-                   sample['vectors'][3, x_origins, y_origins],
-                   -sample['vectors'][2, x_origins, y_origins],
+                   -sample['vectors'][3, x_origins, y_origins],
+                   sample['vectors'][2, x_origins, y_origins],
                    color=['r'])
 
         in_cmap = colors.ListedColormap(['black', '#7CFC00'])

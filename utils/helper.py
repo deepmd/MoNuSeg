@@ -56,10 +56,10 @@ def get_centroids_vectors_areas(labels, centroid_size=3):
 
             # create vectors to centers of masses
             center_of_mass = ndimage.measurements.center_of_mass(mask)
-            (x, y) = (int(round(center_of_mass[0])), int(round(center_of_mass[1])))
-            centroids[x - centroid_range:x + centroid_range + 1, y - centroid_range:y + centroid_range + 1] = 1
-            vectors[2, x_nonzeros, y_nonzeros] = x - x_nonzeros
-            vectors[3, x_nonzeros, y_nonzeros] = y - y_nonzeros
+            (xc, yc) = (int(round(center_of_mass[0])), int(round(center_of_mass[1])))
+            centroids[xc - centroid_range:xc + centroid_range + 1, yc - centroid_range:yc + centroid_range + 1] = 1
+            vectors[2, x_nonzeros, y_nonzeros] = x_nonzeros - xc
+            vectors[3, x_nonzeros, y_nonzeros] = y_nonzeros - yc
 
             # calculate area of mass regions
             region_props = skimage.measure.regionprops(mask)
