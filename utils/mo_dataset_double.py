@@ -9,7 +9,7 @@ warnings.simplefilter(action='ignore', category=FutureWarning)
 class MODatasetDouble(Dataset):
     """Multi Organ Dataset for Double UNet"""
 
-    def __init__(self, root_dir, ids, num_patches=None, patch_size=None, transform=None):
+    def __init__(self, root_dir, ids, num_patches=None, patch_size=None, transform=None, rgb=True):
         self.root_dir = root_dir
         self.ids = ids
         self.transform = transform
@@ -36,7 +36,7 @@ class MODatasetDouble(Dataset):
         for img_id in ids:
             img_path = os.path.join(self.root_dir, IMAGES_DIR, img_id+'.tif')
             img = cv2.imread(img_path)
-            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB) if rgb else img
             self.images[img_id] = img
             mask_path = os.path.join(self.root_dir, MASKS_DIR, img_id+'.png')
             mask = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE) / 255
