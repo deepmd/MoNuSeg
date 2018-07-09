@@ -111,9 +111,41 @@ def dice_value_1d(logits, labels):
     return score.sum()/num
 
 
-def dice_index(pred_labels, gt_labels):
-    m1    = pred_labels.reshape(-1)
-    m2    = gt_labels.reshape(-1)
+class MetricMonitor:
+    def __init__(self, batch_size=None):
+        self.batch_size = batch_size
+        self.reset()
+
+    def reset(self):
+        self.metrics = collections.defaultdict(lambda: {'sum': 0, 'count': 0, 'avg': 0})
+
+    def update(self, metric_name, value, n=None):
+        if n is None:
+            n = self.batch_size
+        metric = self.metrics[metric_name]
+        metric['sum'] += value * n
+        metric['count'] += n
+        metric['avg'] = metric['sum'] / metric['count']
+
+    def get_avg(self, metric_name):
+        return self.metrics[metric_name]['avg']
+
+    def get_metric_values(self):
+        return [(metric, values['avg']) for metric, values in self.metrics.items()]
+
+    def __str__(self):
+        return ' | '.join(
+            f'{metric_name} {metric["avg"]:.6f}' for metric_name, metric in
+            self.metrics.items()
+        )
+
+
+#------------------------------------------------------------------------------------------
+
+
+def dice_index(pred_mask, gt_mask):
+    m1    = pred_mask.reshape(-1)
+    m2    = gt_mask.reshape(-1)
     intersection = (m1 * m2)
     smooth = 1
     return (2. * intersection.sum() + smooth) / (m1.sum() + m2.sum() + smooth)
@@ -148,32 +180,3 @@ def aggregated_jaccard(pred_labels, gt_labels):
         pred_label = (pred_labels == pred_l).astype(np.int)
         U += pred_label.sum()
     return C / U if U != 0 else 0
-
-
-class MetricMonitor:
-    def __init__(self, batch_size=None):
-        self.batch_size = batch_size
-        self.reset()
-
-    def reset(self):
-        self.metrics = collections.defaultdict(lambda: {'sum': 0, 'count': 0, 'avg': 0})
-
-    def update(self, metric_name, value, n=None):
-        if n is None:
-            n = self.batch_size
-        metric = self.metrics[metric_name]
-        metric['sum'] += value * n
-        metric['count'] += n
-        metric['avg'] = metric['sum'] / metric['count']
-
-    def get_avg(self, metric_name):
-        return self.metrics[metric_name]['avg']
-
-    def get_metric_values(self):
-        return [(metric, values['avg']) for metric, values in self.metrics.items()]
-
-    def __str__(self):
-        return ' | '.join(
-            f'{metric_name} {metric["avg"]:.6f}' for metric_name, metric in
-            self.metrics.items()
-        )
