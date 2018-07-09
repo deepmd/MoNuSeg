@@ -24,6 +24,7 @@ class UNet(nn.Module):
         self.downs = nn.ModuleList(self.downs)
         self.bases = nn.ModuleList(self.bases)
         self.ups = nn.ModuleList(self.ups)
+        self.penultimate_output = config.get('penultimate_output', False)
 
     def forward(self, x):
         d_outs = []
@@ -34,5 +35,5 @@ class UNet(nn.Module):
             x = base(x)
         for up, d_out in zip(self.ups, reversed(d_outs)):
             x = up(x, d_out)
-        x = self.outc(x)
-        return x
+        y = self.outc(x)
+        return (x, y) if self.penultimate_output else y

@@ -25,19 +25,28 @@ class MODataset(Dataset):
                 self.patch_coords[:, 2] = self.patch_coords[:, 0] + patch_size
                 self.patch_coords[:, 3] = self.patch_coords[:, 1] + patch_size
                 np.savetxt(patch_info_path, self.patch_coords, delimiter=',', fmt='%d')
+        self.images = {}
+        self.inside_masks = {}
+        self.boundary_masks = {}
+        for img_id in ids:
+            img_path = os.path.join(self.root_dir, IMAGES_DIR, img_id+'.tif')
+            img = cv2.imread(img_path)
+            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+            self.images[img_id] = img
+            inside_mask_path = os.path.join(self.root_dir, INSIDE_MASKS_DIR, img_id+'.png')
+            inside_mask = cv2.imread(inside_mask_path, cv2.IMREAD_GRAYSCALE) / 255
+            self.inside_masks[img_id] = inside_mask
+            boundary_mask_path = os.path.join(self.root_dir, BOUNDARY_MASKS_DIR, img_id+'.png')
+            boundary_mask = cv2.imread(boundary_mask_path, cv2.IMREAD_GRAYSCALE) / 255
+            self.boundary_masks[img_id] = boundary_mask
 
     def __len__(self):
         return len(self.ids)
 
     def __getitem__(self, idx):
-        img_path = os.path.join(self.root_dir, IMAGES_DIR, self.ids[idx]+'.tif')
-        img = cv2.imread(img_path)
-        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-
-        inside_mask_path = os.path.join(self.root_dir, INSIDE_MASKS_DIR, self.ids[idx]+'.png')
-        inside_mask = cv2.imread(inside_mask_path, cv2.IMREAD_GRAYSCALE) / 255
-        boundary_mask_path = os.path.join(self.root_dir, BOUNDARY_MASKS_DIR, self.ids[idx]+'.png')
-        boundary_mask = cv2.imread(boundary_mask_path, cv2.IMREAD_GRAYSCALE) / 255
+        img = self.images[self.ids[idx]]
+        inside_mask = self.inside_masks[self.ids[idx]]
+        boundary_mask = self.boundary_masks[self.ids[idx]]
 
         if self.patch_coords is not None:
             y1, x1, y2, x2 = self.patch_coords[idx]
