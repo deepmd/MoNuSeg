@@ -64,10 +64,6 @@ def train_transforms(image, mask, labels):
     for index in range(labels_aug.shape[-1]):
         labels_aug[..., index] = (labels_aug[..., index] > 0).astype(np.uint8)
 
-    # merge_labels = np.max(masks_aug[:, :, 1:], axis=-1, keepdims=False)
-    # merge_labels, _, _ = segmentation.relabel_sequential(merge_labels)
-    # mask_labels_aug = np.stack([masks_aug[:, :, 0], merge_labels], axis=-1)
-
     image_aug_tensor = transforms.ToTensor()(image_aug.copy())
     # image_aug_tensor = transforms.Normalize([0.03072981, 0.03072981, 0.01682784],
     #                              [0.17293351, 0.12542403, 0.0771413 ])(image_aug_tensor)
@@ -98,8 +94,45 @@ def run_check_dataset(transform=None):
         cv2.waitKey(0)
 
 
+def run_check_vectors(transform=None, num_vectors=10):
+    ids = ['TCGA-18-5592-01Z-00-DX1']
+    dataset = MODatasetDouble('../../MoNuSeg Training Data', ids, num_patches=10, patch_size=256, transform=transform)
+
+    for n in range(len(dataset)):
+        sample = dataset[n]
+        (x_nonzeros, y_nonzeros) = np.nonzero(sample['masks'][0])
+        random_indices = np.random.randint(0, len(x_nonzeros)-1, num_vectors)
+        (x_origins, y_origins) = x_nonzeros[random_indices], y_nonzeros[random_indices]
+
+        plt.quiver(*(y_origins, x_origins),
+                   -sample['vectors'][1, x_origins, y_origins],
+                   sample['vectors'][0, x_origins, y_origins],
+                   color=['b'])
+
+        plt.quiver(*(y_origins, x_origins),
+                   sample['vectors'][3, x_origins, y_origins],
+                   -sample['vectors'][2, x_origins, y_origins],
+                   color=['r'])
+
+        in_cmap = colors.ListedColormap(['black', '#7CFC00'])
+        in_cmap = in_cmap(np.arange(2))
+        in_cmap[:, -1] = np.linspace(0, 1, 2)
+        in_cmap = colors.ListedColormap(in_cmap)
+        bn_cmap = colors.ListedColormap(['black', '#FF0000'])
+        bn_cmap = bn_cmap(np.arange(2))
+        bn_cmap[:, -1] = np.linspace(0, 1, 2)
+        bn_cmap = colors.ListedColormap(bn_cmap)
+        plt.rcParams['axes.facecolor'] = 'black'
+        # plt.imshow(img)
+        plt.imshow(sample['masks'][0], cmap=in_cmap, alpha=0.5)
+        plt.imshow(sample['masks'][-1], cmap=bn_cmap, alpha=0.5)
+        plt.show()
+        cv2.waitKey(0)
+
+
 # main #################################################################
 if __name__ == '__main__':
     print('%s: calling main function ... ' % os.path.basename(__file__))
-    run_check_dataset(train_transforms)
+    # run_check_dataset(train_transforms)
+    run_check_vectors(train_transforms, 50)
     print('\nsuccess!')

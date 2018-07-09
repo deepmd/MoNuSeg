@@ -1,4 +1,5 @@
 from common import *
+from skimage import io
 
 
 def get_spaced_colors(n, cmap=None):
@@ -47,16 +48,20 @@ def get_centroids_vectors_areas(labels, centroid_size=3):
         if np.count_nonzero(mask) != 0:
             # create vectors to borders of regions
             inds = ndimage.morphology.distance_transform_edt(mask, return_distances=False, return_indices=True)
-            vectors[0, :, :] += np.expand_dims(np.arange(0, num_rows), axis=1) - inds[0]
-            vectors[1, :, :] += np.expand_dims(np.arange(0, num_cols), axis=0) - inds[1]
+            (x_nonzeros, y_nonzeros) = np.nonzero(mask)
+            xs = inds[0, x_nonzeros, y_nonzeros]
+            ys = inds[1, x_nonzeros, y_nonzeros]
+            vectors[0, x_nonzeros, y_nonzeros] = x_nonzeros - xs
+            vectors[1, x_nonzeros, y_nonzeros] = y_nonzeros - ys
 
             # create vectors to centers of masses
             center_of_mass = ndimage.measurements.center_of_mass(mask)
-            (y, x) = (int(round(center_of_mass[0])), int(round(center_of_mass[1])))
-            centroids[y - centroid_range:y + centroid_range + 1, x - centroid_range:x + centroid_range + 1] = 1
-            vectors[2, :, :] += np.multiply(np.expand_dims(x - np.arange(0, num_rows), axis=1), mask)
-            vectors[3, :, :] += np.multiply(np.expand_dims(y - np.arange(0, num_cols), axis=0), mask)
+            (x, y) = (int(round(center_of_mass[0])), int(round(center_of_mass[1])))
+            centroids[x - centroid_range:x + centroid_range + 1, y - centroid_range:y + centroid_range + 1] = 1
+            vectors[2, x_nonzeros, y_nonzeros] = x - x_nonzeros
+            vectors[3, x_nonzeros, y_nonzeros] = y - y_nonzeros
 
+            # calculate area of mass regions
             region_props = skimage.measure.regionprops(mask)
             for props in region_props:
                 areas += (props.area / total_area) * mask
