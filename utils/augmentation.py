@@ -21,7 +21,6 @@ def get_train_augmenters_seq():
             iaa.Fliplr(0.5),  # horizontally flip 50% of all images
             iaa.Flipud(0.2),  # vertically flip 20% of all images
 
-
             # Apply affine transformations to some of the images
             # - scale to 80-120% of image height/width (each axis independently)
             # - translate by -20 to +20 relative to height/width (per axis)
@@ -36,18 +35,30 @@ def get_train_augmenters_seq():
             sometimes(iaa.Affine(
                 scale={"x": (0.8, 1.2), "y": (0.8, 1.2)},
                 translate_percent={"x": (-0.2, 0.2), "y": (-0.2, 0.2)},
-                rotate=(-45, 45),
+                rotate=(-90, 90),
                 shear=(-16, 16),
                 order=[0, 1],
                 cval=0,
                 mode='edge'
             )),
 
-            # In some images move pixels locally around (with random
-            # strengths).
-            sometimes(
-                iaa.ElasticTransformation(alpha=(0.5, 3.5), sigma=0.25)
-            ),
+            # In some images distort local areas with varying strength.
+            sometimes(iaa.PiecewiseAffine(
+                scale=(0.01, 0.1),
+                order=[0, 1],
+                cval=0,
+                mode='edge'
+            )),
+
+            # Blur some images with varying strength using
+            # gaussian blur (sigma between 0 and 2.0),
+            # average/uniform blur (kernel size between 2x2 and 5x5)
+            # median blur (kernel size between 3x3 and 7x7).
+            sometimes(iaa.OneOf([
+                iaa.GaussianBlur((0, 2.0), name='GaussianBlur'),
+                iaa.AverageBlur(k=(2, 5), name='AverageBlur'),
+                iaa.MedianBlur(k=(3, 7), name='MedianBlur'),
+            ]))
         ],
         # do all of the above augmentations in random order
         random_order=True

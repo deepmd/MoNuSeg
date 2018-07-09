@@ -64,7 +64,7 @@ DOUBLE_UNET_CONFIG_3 = {
 }
 
 MASK_THRESHOLD = 0.5
-DEACTIVATED_MASK_AUG_LIST = ['Superpixels', 'MedianBlur', 'AverageBlur', 'MedianBlur', 'Sharpen', 'Emboss',
+DEACTIVATED_MASK_AUG_LIST = ['Superpixels', 'GaussianBlur', 'AverageBlur', 'MedianBlur', 'Sharpen', 'Emboss',
                              'EdgeDetect', 'DirectedEdgeDetect', 'AdditiveGaussianNoise', 'Dropout',
                              'CoarseDropout', 'Invert', 'Add_Value_to_each_Pixel', 'Change_Brightness',
                              'ContrastNormalization', 'Grayscale']
