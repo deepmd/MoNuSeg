@@ -23,6 +23,15 @@ def post_processing(pred):
 net = UNet(UNET_CONFIG).cuda()
 weight_path = os.path.join(WEIGHTS_DIR, 'unet-0.4974.pth')
 net.load_state_dict(torch.load(weight_path))
+output_path = 'UNET'
+output_path = os.path.join(OUTPUT_DIR, output_path)
+if not os.path.exists(output_path):
+    os.makedirs(output_path)
+    os.makedirs(os.path.join(output_path, LABELS_DIR))
+
+def model(img):
+    _, pred = net(img)
+    return pred
 
 sum_agg_jac = 0
 sum_dice = 0
@@ -35,8 +44,8 @@ for test_id in TEST_IDS:
     num_labels = np.max(pred_labels)
     colored_labels = \
         skimage.color.label2rgb(pred_labels, colors=helper.get_spaced_colors(num_labels)).astype(np.uint8)
-    pred_labels_path = os.path.join(OUTPUT_DIR, 'UNET', LABELS_DIR, test_id)
-    pred_colored_labels_path = os.path.join(OUTPUT_DIR, 'UNET', test_id+'.png')
+    pred_labels_path = os.path.join(output_path, LABELS_DIR, test_id)
+    pred_colored_labels_path = os.path.join(output_path, test_id+'.png')
     np.save(pred_labels_path, pred_labels)
     bgr_labels = cv2.cvtColor(colored_labels, cv2.COLOR_RGB2BGR)
     cv2.imwrite(pred_colored_labels_path, bgr_labels)
@@ -55,9 +64,9 @@ for test_id in TEST_IDS:
     sum_agg_jac += agg_jac
     print('{}\'s Aggregated Jaccard Index: {:.4f}'.format(test_id, agg_jac))
 
-    masks_path = os.path.join(INPUT_DIR, MASKS_DIR, test_id+'.png')
-    gt_masks = cv2.imread(masks_path, cv2.IMREAD_GRAYSCALE) / 255
-    dice = dice_index(pred[0], gt_masks)
+    mask_path = os.path.join(INPUT_DIR, MASKS_DIR, test_id+'.png')
+    gt_mask = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE) / 255
+    dice = dice_index(pred[0], gt_mask)
     sum_dice += dice
     print('{}\'s Dice Index: {:.4f}'.format(test_id, dice))
 
