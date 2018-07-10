@@ -18,7 +18,7 @@ class UNet(nn.Module):
             last_channels = b_channels
         bilinear_up = config['up_method'] == 'bilinear'
         for (u_channels, n), (d_channels, _) in zip(config['up'], reversed(config['down'])):
-            self.ups.append(up(last_channels + d_channels, u_channels, n, bilinear_up))
+            self.ups.append(up(last_channels, d_channels, u_channels, n, bilinear_up))
             last_channels = u_channels
         self.outc = outconv(last_channels, config['out_channels'])
         self.downs = nn.ModuleList(self.downs)

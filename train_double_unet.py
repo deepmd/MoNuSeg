@@ -171,7 +171,7 @@ net = train_model(net, None, criterion2, optimizer, exp_lr_scheduler, None, num_
 print('\n---------------- Fine-tuning entire net ----------------')
 for param in net.unet1.parameters():
     param.requires_grad = True
-save_path = os.path.join(WEIGHTS_DIR, 'double-unet-{:.4f}.pth')
+save_path = os.path.join(WEIGHTS_DIR, 'double-wired-unet-{:.4f}.pth')
 optimizer = optim.SGD(filter(lambda p:  p.requires_grad, net.parameters()), lr=0.001,
                       momentum=0.9, weight_decay=0.0001)
 exp_lr_scheduler = lr_scheduler.ReduceLROnPlateau(optimizer, patience=10, verbose=True)

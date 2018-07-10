@@ -3,6 +3,20 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 
+class bottleneck(nn.Module):
+    '''(conv => BN => ReLU)'''
+    def __init__(self, in_ch, out_ch):
+        super(bottleneck, self).__init__()
+        layers = [nn.Conv2d(in_ch, out_ch, 1),
+                  nn.BatchNorm2d(out_ch),
+                  nn.ReLU(inplace=True)]
+        self.bottleneck = nn.Sequential(*layers)
+
+    def forward(self, x):
+        x = self.bottleneck(x)
+        return x
+
+
 class conv(nn.Module):
     '''(conv => BN => ReLU) * n'''
     def __init__(self, in_ch, out_ch, n):
@@ -20,6 +34,7 @@ class conv(nn.Module):
         x = self.conv(x)
         return x
 
+
 class down(nn.Module):
     def __init__(self, in_ch, out_ch, n):
         super(down, self).__init__()
@@ -33,7 +48,7 @@ class down(nn.Module):
 
 
 class up(nn.Module):
-    def __init__(self, in_ch, out_ch, n, bilinear=True):
+    def __init__(self, in_ch1, in_ch2, out_ch, n, bilinear=True):
         super(up, self).__init__()
 
         #  would be a nice idea if the upsampling could be learned too,
@@ -41,9 +56,9 @@ class up(nn.Module):
         if bilinear:
             self.up = nn.Upsample(scale_factor=2)
         else:
-            self.up = nn.ConvTranspose2d(in_ch, out_ch, 2, stride=2)
+            self.up = nn.ConvTranspose2d(in_ch1 + in_ch2, out_ch, 2, stride=2)
 
-        self.conv = conv(in_ch, out_ch, n)
+        self.conv = conv(in_ch1 + in_ch2, out_ch, n)
 
     def forward(self, x1, x2):
         x1 = self.up(x1)
@@ -64,3 +79,18 @@ class outconv(nn.Module):
     def forward(self, x):
         x = self.conv(x)
         return x
+
+
+class down_merge(nn.Module):
+    def __init__(self, in_ch1, in_ch2, out_ch, n):
+        super(down_merge, self).__init__()
+        self.conv = conv(in_ch1, out_ch, n)
+        self.bottleneck = bottleneck(out_ch + in_ch2, out_ch)
+        self.down = nn.MaxPool2d(2)
+
+    def forward(self, x1, x2):
+        x = self.conv(x1)
+        x = torch.cat([x, x2], dim=1)
+        before_pool = self.bottleneck(x)
+        x = self.down(before_pool)
+        return x, before_pool

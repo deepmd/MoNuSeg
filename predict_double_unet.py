@@ -4,7 +4,7 @@ from utils import init
 from utils.metrics import aggregated_jaccard, dice_index
 from utils import helper
 from utils.prediction import predict
-from models.unet import DoubleUNet
+from models.unet import DoubleUNet, DoubleWiredUNet
 from skimage import segmentation as skseg
 
 init.set_results_reproducible()
@@ -31,10 +31,10 @@ def post_processing_randomwalk(pred):
     return labels
 
 ########################### Config Predict ##############################
-net = DoubleUNet(DOUBLE_UNET_CONFIG_3).cuda()
-weight_path = os.path.join(WEIGHTS_DIR, 'double-unet(3)-0.3794.pth')
+net = DoubleWiredUNet(DOUBLE_UNET_CONFIG_4).cuda()
+weight_path = os.path.join(WEIGHTS_DIR, 'double-wired-unet-0.4341.pth')
 net.load_state_dict(torch.load(weight_path))
-output_path = 'DUNET'
+output_path = 'DWUNET'
 output_path = os.path.join(OUTPUT_DIR, output_path)
 if not os.path.exists(output_path):
     os.makedirs(output_path)

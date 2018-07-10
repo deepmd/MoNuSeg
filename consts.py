@@ -27,12 +27,12 @@ DOUBLE_UNET_CONFIG_1 = {
               'base': [(512, 2)],
               'up'  : [(256, 2), (128, 2), (64, 2), (64, 2)],
               'up_method': 'bilinear'},
-    'unet2': {'in_channels': 7, 'out_channels': 2,
+    'unet2': {'out_channels': 2,
               'down': [(64, 2), (128, 2), (256, 2), (512, 2)],
               'base': [(512, 2)],
               'up'  : [(256, 2), (128, 2), (64, 2), (64, 2)],
               'up_method': 'bilinear'},
-    'concat_input': True
+    'concat': 'input'
 }
 
 DOUBLE_UNET_CONFIG_2 = {
@@ -41,12 +41,12 @@ DOUBLE_UNET_CONFIG_2 = {
               'base': [(512, 2)],
               'up'  : [(256, 2), (192, 2), (128, 2), (96, 2), (64, 2), (64, 2)],
               'up_method': 'bilinear'},
-    'unet2': {'in_channels': 7, 'out_channels': 2,
+    'unet2': {'out_channels': 2,
               'down': [(64, 2), (128, 2), (256, 2), (512, 2)],
               'base': [(512, 2)],
               'up'  : [(256, 2), (128, 2), (64, 2), (64, 2)],
               'up_method': 'bilinear'},
-    'concat_input': True
+    'concat': 'input'
 }
 
 DOUBLE_UNET_CONFIG_3 = {
@@ -54,13 +54,13 @@ DOUBLE_UNET_CONFIG_3 = {
               'down': [(64, 2), (96, 2), (128, 2), (192, 2), (256, 2), (384, 2)],
               'base': [(512, 2)],
               'up'  : [(256, 2), (192, 2), (128, 2), (96, 2), (64, 2), (64, 2)],
-              'up_method': 'bilinear',
-              'penultimate_output': True},
-    'unet2': {'in_channels': 68, 'out_channels': 2,
+              'up_method': 'bilinear'},
+    'unet2': {'out_channels': 2,
               'down': [(64, 2), (128, 2), (256, 2), (512, 2)],
               'base': [(512, 2)],
               'up'  : [(256, 2), (128, 2), (64, 2), (64, 2)],
-              'up_method': 'bilinear'}
+              'up_method': 'bilinear'},
+    'concat': 'penultimate'
 }
 
 DOUBLE_UNET_CONFIG_4 = {
@@ -68,13 +68,13 @@ DOUBLE_UNET_CONFIG_4 = {
               'down': [(64, 2), (128, 2), (256, 2), (512, 2)],
               'base': [(512, 2)],
               'up': [(256, 2), (128, 2), (64, 2), (64, 2)],
-              'up_method': 'bilinear',
-              'penultimate_output': True},
-    'unet2': {'in_channels': 68, 'out_channels': 2,
+              'up_method': 'bilinear'},
+    'unet2': {'out_channels': 2,
               'down': [(64, 2), (128, 2), (256, 2), (512, 2)],
               'base': [(512, 2)],
               'up': [(256, 2), (128, 2), (64, 2), (64, 2)],
-              'up_method': 'bilinear'}
+              'up_method': 'bilinear'},
+    'concat': 'penultimate'
 }
 
 MASK_THRESHOLD = 0.5
