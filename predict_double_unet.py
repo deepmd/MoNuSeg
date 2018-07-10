@@ -4,7 +4,7 @@ from utils import init
 from utils.metrics import aggregated_jaccard, dice_index
 from utils import helper
 from utils.prediction import predict
-from models.double_unet import DoubleUNet
+from models.unet import DoubleUNet
 from skimage import segmentation as skseg
 
 init.set_results_reproducible()

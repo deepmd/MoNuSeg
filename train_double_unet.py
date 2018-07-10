@@ -6,7 +6,7 @@ from utils import init
 from utils.mo_dataset_double import MODatasetDouble
 from utils.metrics import criterion_BCE_SoftDice, criterion_AngularError, dice_value, MetricMonitor
 from utils import augmentation
-from models.double_unet import DoubleUNet
+from models.unet import DoubleUNet
 
 init.set_results_reproducible()
 init.init_torch()
