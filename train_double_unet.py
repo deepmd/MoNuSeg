@@ -6,7 +6,7 @@ from utils import init
 from utils.mo_dataset_double import MODatasetDouble
 from utils.metrics import criterion_BCE_SoftDice, criterion_AngularError, dice_value, MetricMonitor
 from utils import augmentation
-from models.unet import DoubleUNet
+from models.unet import DoubleUNet, DoubleWiredUNet
 
 init.set_results_reproducible()
 init.init_torch()
@@ -49,12 +49,12 @@ ids_train, ids_valid = train_test_split(train_ids, test_size=0.2, random_state=4
 ids = {'train': ids_train, 'valid': ids_valid}
 datasets = {x: MODatasetDouble(INPUT_DIR,
                                ids[x],
-                               num_patches=500,
+                               num_patches=50,
                                patch_size=256,
                                transform=trans[x])
            for x in ['train', 'valid']}
 dataloaders = {x: torch.utils.data.DataLoader(datasets[x],
-                                              batch_size=8,
+                                              batch_size=4,
                                               shuffle=True, 
                                               num_workers=8,
                                               pin_memory=True)
@@ -142,7 +142,7 @@ def train_model(model, criterion1, criterion2, optimizer, scheduler = None, save
 
 ########################### Config Train ##############################
 
-net = DoubleUNet(DOUBLE_UNET_CONFIG_3).cuda()
+net = DoubleWiredUNet(DOUBLE_UNET_CONFIG_4).cuda()
 
 def criterion1(logits, labels, areas):
     return criterion_AngularError(logits, labels, weights=areas)
@@ -156,7 +156,7 @@ for param in net.unet2.parameters():
 optimizer = optim.SGD(filter(lambda p:  p.requires_grad, net.parameters()), lr=0.001,
                       momentum=0.9, weight_decay=0.0001)
 exp_lr_scheduler = lr_scheduler.ReduceLROnPlateau(optimizer, patience=10, verbose=True)
-net = train_model(net, criterion1, None, optimizer, exp_lr_scheduler, None, num_epochs=20, compare_Loss=True)
+net = train_model(net, criterion1, None, optimizer, exp_lr_scheduler, None, num_epochs=10, compare_Loss=True)
 
 print('\n---------------- Training second unet ----------------')
 for param in net.unet1.parameters():
@@ -166,7 +166,7 @@ for param in net.unet2.parameters():
 optimizer = optim.SGD(filter(lambda p:  p.requires_grad, net.parameters()), lr=0.001,
                       momentum=0.9, weight_decay=0.0001)
 exp_lr_scheduler = lr_scheduler.ReduceLROnPlateau(optimizer, patience=10, verbose=True)
-net = train_model(net, None, criterion2, optimizer, exp_lr_scheduler, None, num_epochs=20)
+net = train_model(net, None, criterion2, optimizer, exp_lr_scheduler, None, num_epochs=10)
 
 print('\n---------------- Fine-tuning entire net ----------------')
 for param in net.unet1.parameters():
@@ -175,4 +175,4 @@ save_path = os.path.join(WEIGHTS_DIR, 'double-unet-{:.4f}.pth')
 optimizer = optim.SGD(filter(lambda p:  p.requires_grad, net.parameters()), lr=0.001,
                       momentum=0.9, weight_decay=0.0001)
 exp_lr_scheduler = lr_scheduler.ReduceLROnPlateau(optimizer, patience=10, verbose=True)
-net = train_model(net, criterion1, criterion2, optimizer, exp_lr_scheduler, save_path, num_epochs=30)
+net = train_model(net, criterion1, criterion2, optimizer, exp_lr_scheduler, save_path, num_epochs=20)

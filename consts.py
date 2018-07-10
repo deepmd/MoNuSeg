@@ -63,6 +63,20 @@ DOUBLE_UNET_CONFIG_3 = {
               'up_method': 'bilinear'}
 }
 
+DOUBLE_UNET_CONFIG_4 = {
+    'unet1': {'in_channels': 3, 'out_channels': 4,
+              'down': [(64, 2), (128, 2), (256, 2), (512, 2)],
+              'base': [(512, 2)],
+              'up': [(256, 2), (128, 2), (64, 2), (64, 2)],
+              'up_method': 'bilinear',
+              'penultimate_output': True},
+    'unet2': {'in_channels': 68, 'out_channels': 2,
+              'down': [(64, 2), (128, 2), (256, 2), (512, 2)],
+              'base': [(512, 2)],
+              'up': [(256, 2), (128, 2), (64, 2), (64, 2)],
+              'up_method': 'bilinear'}
+}
+
 MASK_THRESHOLD = 0.5
 DEACTIVATED_MASK_AUG_LIST = ['Superpixels', 'GaussianBlur', 'AverageBlur', 'MedianBlur', 'Sharpen', 'Emboss',
                              'EdgeDetect', 'DirectedEdgeDetect', 'AdditiveGaussianNoise', 'Dropout',
