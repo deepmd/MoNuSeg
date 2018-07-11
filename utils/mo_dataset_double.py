@@ -9,10 +9,11 @@ warnings.simplefilter(action='ignore', category=FutureWarning)
 class MODatasetDouble(Dataset):
     """Multi Organ Dataset for Double UNet"""
 
-    def __init__(self, root_dir, ids, num_patches=None, patch_size=None, transform=None, bgr=False):
+    def __init__(self, root_dir, ids, num_patches=None, patch_size=None, transform=None, bgr=False, erosion=None):
         self.root_dir = root_dir
         self.ids = ids
         self.transform = transform
+        self.erosion = erosion
         self.patch_coords = None
         if num_patches is not None and patch_size is not None:
             self.ids = np.random.permutation(np.repeat(ids, num_patches))
@@ -31,16 +32,12 @@ class MODatasetDouble(Dataset):
                 self.patch_coords[:, 3] = self.patch_coords[:, 1] + patch_size
                 np.savetxt(patch_info_path, self.patch_coords, delimiter=',', fmt='%d')
         self.images = {}
-        self.masks = {}
         self.labels = {}
         for img_id in ids:
             img_path = os.path.join(self.root_dir, IMAGES_DIR, img_id+'.tif')
             img = cv2.imread(img_path)
             img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB) if not bgr else img
             self.images[img_id] = img
-            mask_path = os.path.join(self.root_dir, MASKS_DIR, img_id+'.png')
-            mask = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE) / 255
-            self.masks[img_id] = mask
             labels_path = os.path.join(self.root_dir, LABELS_DIR, img_id+'.npy')
             labels = np.load(labels_path)
             self.labels[img_id] = labels
@@ -50,23 +47,16 @@ class MODatasetDouble(Dataset):
 
     def __getitem__(self, idx):
         img = self.images[self.ids[idx]]
-        mask = self.masks[self.ids[idx]]
         labels = self.labels[self.ids[idx]]
-        # mask_1 = skmorph.binary_erosion(mask, skmorph.disk(1))
-        # mask_3 = skmorph.binary_erosion(mask, skmorph.disk(3))
-        # mask_5 = skmorph.binary_erosion(mask, skmorph.disk(5))
 
         if self.patch_coords is not None:
             y1, x1, y2, x2 = self.patch_coords[idx]
             img = img[y1:y2, x1:x2, :]
-            mask = mask[y1:y2, x1:x2]
-            # mask_1 = mask_1[y1:y2, x1:x2]
-            # mask_3 = mask_3[y1:y2, x1:x2]
-            # mask_5 = mask_5[y1:y2, x1:x2]
             labels = labels[y1:y2, x1:x2]
 
-        mask = skmorph.binary_erosion(mask, skmorph.disk(1))
-        labels = skmorph.erosion(labels, skmorph.disk(1))
+        if self.erosion is not None:
+            labels = skmorph.erosion(labels, skmorph.disk(self.erosion))
+        mask = (labels > 0).astype(np.uint8)
 
         labels, _, _ = skimage.segmentation.relabel_sequential(labels)
         labels = [(labels == label) for label in range(1, len(np.unique(labels)))]
@@ -106,7 +96,7 @@ def train_transforms(image, mask, labels):
 
 def run_check_dataset(transform=None):
     ids = ['TCGA-18-5592-01Z-00-DX1']
-    dataset = MODatasetDouble('../../MoNuSeg Training Data', ids, num_patches=10, patch_size=256, transform=transform)
+    dataset = MODatasetDouble('../../MoNuSeg Training Data', ids, num_patches=10, patch_size=256, transform=transform, erosion=3)
 
     for n in range(len(dataset)):
         sample = dataset[n]
@@ -166,6 +156,6 @@ def run_check_vectors(transform=None, num_vectors=10):
 # main #################################################################
 if __name__ == '__main__':
     print('%s: calling main function ... ' % os.path.basename(__file__))
-    # run_check_dataset(train_transforms)
-    run_check_vectors(train_transforms, 50)
+    run_check_dataset(train_transforms)
+    # run_check_vectors(train_transforms, 50)
     print('\nsuccess!')

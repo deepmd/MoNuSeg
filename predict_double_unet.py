@@ -11,7 +11,7 @@ init.set_results_reproducible()
 init.init_torch()
 
 ############################# PostProcessing ##################################
-def post_processing_watershed(pred):
+def post_processing_watershed(pred, dilation=None):
     mask = pred[0] >= 0.5
     centroids = pred[-1] >= 0.5
     mask = skmorph.remove_small_holes(mask, mask.shape[0], connectivity=mask.shape[0])
@@ -19,17 +19,19 @@ def post_processing_watershed(pred):
     distance = ndimage.distance_transform_edt(mask)
     labels = skmorph.watershed(-distance, markers=markers, mask=mask)
     # labels = skmorph.watershed(pred[0], markers=markers, mask=mask)
-    labels = skmorph.dilation(labels, skmorph.disk(1))
+    if dilation is not None:
+        labels = skmorph.dilation(labels, skmorph.disk(dilation))
     return labels
 
-def post_processing_randomwalk(pred):
+def post_processing_randomwalk(pred, dilation=None):
     mask = pred[0] >= 0.5
     centroids = pred[-1] >= 0.5
     mask = skmorph.remove_small_holes(mask, mask.shape[0], connectivity=mask.shape[0])
     markers = skmorph.label(centroids, connectivity=1)
     labels = skseg.random_walker(mask, markers, beta=10, mode='bf')
     labels = labels * mask
-    labels = skmorph.dilation(labels, skmorph.disk(1))
+    if dilation is not None:
+        labels = skmorph.dilation(labels, skmorph.disk(dilation))
     return labels
 
 ########################### Config Predict ##############################
@@ -78,7 +80,7 @@ for test_id in TEST_IDS:
 
     mask_path = os.path.join(INPUT_DIR, MASKS_DIR, test_id+'.png')
     gt_mask = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE) / 255
-    pred_mask = skmorph.dilation(pred[0], skmorph.disk(1))
+    pred_mask = pred[0] #skmorph.dilation(pred[0], skmorph.disk(1))
     dice = dice_index(pred_mask, gt_mask)
     sum_dice += dice
     print('{}\'s Dice Index: {:.4f}'.format(test_id, dice))
