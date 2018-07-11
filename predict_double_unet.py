@@ -19,6 +19,7 @@ def post_processing_watershed(pred):
     distance = ndimage.distance_transform_edt(mask)
     labels = skmorph.watershed(-distance, markers=markers, mask=mask)
     # labels = skmorph.watershed(pred[0], markers=markers, mask=mask)
+    labels = skmorph.dilation(labels, skmorph.disk(1))
     return labels
 
 def post_processing_randomwalk(pred):
@@ -28,11 +29,12 @@ def post_processing_randomwalk(pred):
     markers = skmorph.label(centroids, connectivity=1)
     labels = skseg.random_walker(mask, markers, beta=10, mode='bf')
     labels = labels * mask
+    labels = skmorph.dilation(labels, skmorph.disk(1))
     return labels
 
 ########################### Config Predict ##############################
-net = DoubleWiredUNet(DOUBLE_UNET_CONFIG_4).cuda()
-weight_path = os.path.join(WEIGHTS_DIR, 'double-wired-unet-0.4341.pth')
+net = DoubleWiredUNet(DOUBLE_UNET_CONFIG_5).cuda()
+weight_path = os.path.join(WEIGHTS_DIR, 'double-wired-unet-0.4400.pth')
 net.load_state_dict(torch.load(weight_path))
 output_path = 'DWUNET'
 output_path = os.path.join(OUTPUT_DIR, output_path)
@@ -76,7 +78,8 @@ for test_id in TEST_IDS:
 
     mask_path = os.path.join(INPUT_DIR, MASKS_DIR, test_id+'.png')
     gt_mask = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE) / 255
-    dice = dice_index(pred[0], gt_mask)
+    pred_mask = skmorph.dilation(pred[0], skmorph.disk(1))
+    dice = dice_index(pred_mask, gt_mask)
     sum_dice += dice
     print('{}\'s Dice Index: {:.4f}'.format(test_id, dice))
 

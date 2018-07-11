@@ -65,6 +65,9 @@ class MODatasetDouble(Dataset):
             # mask_5 = mask_5[y1:y2, x1:x2]
             labels = labels[y1:y2, x1:x2]
 
+        mask = skmorph.binary_erosion(mask, skmorph.disk(1))
+        labels = skmorph.erosion(labels, skmorph.disk(1))
+
         labels, _, _ = skimage.segmentation.relabel_sequential(labels)
         labels = [(labels == label) for label in range(1, len(np.unique(labels)))]
         labels = np.stack(labels, axis=-1).astype(np.uint8)
