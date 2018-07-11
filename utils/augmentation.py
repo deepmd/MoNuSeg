@@ -24,7 +24,7 @@ def get_train_augmenters_seq():
             # Apply affine transformations to some of the images
             # - scale to 80-120% of image height/width (each axis independently)
             # - translate by -20 to +20 relative to height/width (per axis)
-            # - rotate by -45 to +45 degrees
+            # - rotate by -90 to +90 degrees
             # - shear by -16 to +16 degrees
             # - order: use nearest neighbour or bilinear interpolation (fast)
             # - mode: use any available mode to fill newly created pixels
@@ -50,15 +50,48 @@ def get_train_augmenters_seq():
                 mode='edge'
             )),
 
-            # Blur some images with varying strength using
-            # gaussian blur (sigma between 0 and 2.0),
-            # average/uniform blur (kernel size between 2x2 and 5x5)
-            # median blur (kernel size between 3x3 and 7x7).
-            sometimes(iaa.OneOf([
-                iaa.GaussianBlur((0, 2.0), name='GaussianBlur'),
-                iaa.AverageBlur(k=(2, 5), name='AverageBlur'),
-                iaa.MedianBlur(k=(3, 7), name='MedianBlur'),
-            ]))
+            # Execute 0 to 2 of the following (less important) augmenters per
+            # image. Don't execute all of them, as that would often be way too
+            # strong.
+            iaa.SomeOf((0, 2),
+                [
+                    # Blur each image with varying strength using
+                    # gaussian blur (sigma between 0 and 2.0),
+                    # average/uniform blur (kernel size between 2x2 and 5x5)
+                    # median blur (kernel size between 3x3 and 7x7).
+                    iaa.OneOf([
+                        iaa.GaussianBlur((0, 2.0), name='GaussianBlur'),
+                        iaa.AverageBlur(k=(2, 5), name='AverageBlur'),
+                        iaa.MedianBlur(k=(3, 7), name='MedianBlur'),
+                    ]),
+
+                    # Sharpen or emboss each image, overlay the result with the original
+                    # image using an alpha between 0 (no sharpening) and 0.25.
+                    iaa.OneOf([
+                        iaa.Sharpen(alpha=(0, 0.25), name='Sharpen'),
+                        iaa.Emboss(alpha=(0, 0.25), strength=(0, 0.75), name='Emboss'),
+                    ]),
+
+                    # Add gaussian noise to some images.
+                    # The noise is randomly sampled per pixel.
+                    # (i.e. brightness change).
+                    iaa.AdditiveGaussianNoise(
+                        loc=0, scale=(0.0, 0.05 * 255), name='AdditiveGaussianNoise'
+                    ),
+
+                    # Add a value of -10 to 10 to each pixel for
+                    # multiply them to a number between 0.8 to 1.2.
+                    iaa.OneOf([
+                        iaa.Add((-10, 10), name='Add_Value_to_each_Pixel'),
+                        iaa.Multiply((0.8, 1.2), name='Change_Brightness'),
+                    ]),
+
+                    # Improve or worsen the contrast of images.
+                    iaa.ContrastNormalization((0.8, 1.2), name='ContrastNormalization'),
+                ],
+                # do all of the above augmentations in random order
+                random_order=True
+            )
         ],
         # do all of the above augmentations in random order
         random_order=True

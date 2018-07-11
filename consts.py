@@ -15,6 +15,12 @@ BOUNDARY_COLORED_LABELS_DIR = 'Labels/Boundary_Colored'
 TEST_IDS = ['TCGA-18-5592-01Z-00-DX1', 'TCGA-38-6178-01Z-00-DX1', 'TCGA-A7-A13E-01Z-00-DX1', 'TCGA-A7-A13F-01Z-00-DX1',
             'TCGA-B0-5711-01Z-00-DX1', 'TCGA-G9-6336-01Z-00-DX1', 'TCGA-G9-6348-01Z-00-DX1', 'TCGA-HE-7128-01Z-00-DX1']
 
+MASK_THRESHOLD = 0.5
+DEACTIVATED_MASK_AUG_LIST = ['Superpixels', 'GaussianBlur', 'AverageBlur', 'MedianBlur', 'Sharpen', 'Emboss',
+                             'EdgeDetect', 'DirectedEdgeDetect', 'AdditiveGaussianNoise', 'Dropout',
+                             'CoarseDropout', 'Invert', 'Add_Value_to_each_Pixel', 'Change_Brightness',
+                             'ContrastNormalization', 'Grayscale']
+
 UNET_CONFIG = {'in_channels': 3, 'out_channels': 3,
                'down': [(64, 2), (128, 2), (256, 2), (512, 2)],
                'base': [(512, 2)],
@@ -77,8 +83,16 @@ DOUBLE_UNET_CONFIG_4 = {
     'concat': 'penultimate'
 }
 
-MASK_THRESHOLD = 0.5
-DEACTIVATED_MASK_AUG_LIST = ['Superpixels', 'GaussianBlur', 'AverageBlur', 'MedianBlur', 'Sharpen', 'Emboss',
-                             'EdgeDetect', 'DirectedEdgeDetect', 'AdditiveGaussianNoise', 'Dropout',
-                             'CoarseDropout', 'Invert', 'Add_Value_to_each_Pixel', 'Change_Brightness',
-                             'ContrastNormalization', 'Grayscale']
+DOUBLE_UNET_CONFIG_5 = {
+    'unet1': {'in_channels': 3, 'out_channels': 4,
+              'down': [(64, 2), (128, 2), (256, 2), (512, 2)],
+              'base': [(512, 2)],
+              'up': [(256, 2), (128, 2), (64, 2), (64, 2)],
+              'up_method': 'bilinear'},
+    'unet2': {'out_channels': 2,
+              'down': [(64, 2), (128, 2), (256, 2), (512, 2)],
+              'base': [(512, 2)],
+              'up': [(256, 2), (128, 2), (64, 2), (64, 2)],
+              'up_method': 'bilinear'},
+    'concat': 'input'
+}
