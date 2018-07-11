@@ -54,7 +54,7 @@ datasets = {x: MODatasetDouble(INPUT_DIR,
                                transform=trans[x])
            for x in ['train', 'valid']}
 dataloaders = {x: torch.utils.data.DataLoader(datasets[x],
-                                              batch_size=4,
+                                              batch_size=8,
                                               shuffle=True, 
                                               num_workers=8,
                                               pin_memory=True)
@@ -70,7 +70,7 @@ def train_model(model, criterion1, criterion2, optimizer, scheduler = None, save
     since = time.time()
     
     best_model_wts = copy.deepcopy(model.state_dict())
-    best_val = 0
+    best_val = -sys.maxsize
     monitor = MetricMonitor()
 
     for epoch in range(num_epochs):
@@ -114,7 +114,7 @@ def train_model(model, criterion1, criterion2, optimizer, scheduler = None, save
 
             epoch_loss = monitor.get_avg('loss')
             epoch_dice = monitor.get_avg('dice')
-            epoch_val = epoch_dice if not compare_Loss else (sys.maxsize - epoch_loss.data.cpu().numpy())
+            epoch_val = epoch_dice if not compare_Loss else -epoch_loss
 
             if phase == 'valid' and scheduler is not None:
                 scheduler.step(epoch_val)
@@ -124,7 +124,7 @@ def train_model(model, criterion1, criterion2, optimizer, scheduler = None, save
                 best_val = epoch_val
                 best_model_wts = copy.deepcopy(model.state_dict())
                 if save_path is not None:
-                    path = save_path.format(best_val)
+                    path = save_path.format(abs(best_val))
                     torch.save(best_model_wts, path)
                     print('Weights of model saved at {}'.format(path))
 
@@ -142,7 +142,7 @@ def train_model(model, criterion1, criterion2, optimizer, scheduler = None, save
 
 ########################### Config Train ##############################
 
-net = DoubleWiredUNet(DOUBLE_UNET_CONFIG_4).cuda()
+net = DoubleUNet(DOUBLE_UNET_CONFIG_3).cuda()
 
 def criterion1(logits, labels, areas):
     return criterion_AngularError(logits, labels, weights=areas)
@@ -171,7 +171,7 @@ net = train_model(net, None, criterion2, optimizer, exp_lr_scheduler, None, num_
 print('\n---------------- Fine-tuning entire net ----------------')
 for param in net.unet1.parameters():
     param.requires_grad = True
-save_path = os.path.join(WEIGHTS_DIR, 'double-wired-unet-{:.4f}.pth')
+save_path = os.path.join(WEIGHTS_DIR, 'double-unet-{:.4f}.pth')
 optimizer = optim.SGD(filter(lambda p:  p.requires_grad, net.parameters()), lr=0.001,
                       momentum=0.9, weight_decay=0.0001)
 exp_lr_scheduler = lr_scheduler.ReduceLROnPlateau(optimizer, patience=10, verbose=True)
