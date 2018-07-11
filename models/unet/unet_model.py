@@ -9,16 +9,17 @@ class UNet(nn.Module):
         self.downs = []
         self.bases = []
         self.ups = []
+        add_se = config.get('add_se', False)
         last_channels = config['in_channels']
         for d_channels, n in config['down']:
-            self.downs.append(down(last_channels, d_channels, n))
+            self.downs.append(down(last_channels, d_channels, n, add_se))
             last_channels = d_channels
         for b_channels, n in config['base']:
             self.bases.append(conv(last_channels, b_channels, n))
             last_channels = b_channels
         bilinear_up = config['up_method'] == 'bilinear'
         for (u_channels, n), (d_channels, _) in zip(config['up'], reversed(config['down'])):
-            self.ups.append(up(last_channels, d_channels, u_channels, n, bilinear_up))
+            self.ups.append(up(last_channels, d_channels, u_channels, n, bilinear_up, add_se))
             last_channels = u_channels
         self.outc = outconv(last_channels, config['out_channels'])
         self.downs = nn.ModuleList(self.downs)

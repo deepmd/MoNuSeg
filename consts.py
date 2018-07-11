@@ -96,3 +96,19 @@ DOUBLE_UNET_CONFIG_5 = {
               'up_method': 'bilinear'},
     'concat': 'input'
 }
+
+DOUBLE_UNET_CONFIG_6 = {
+    'unet1': {'in_channels': 3, 'out_channels': 4,
+              'down': [(64, 2), (128, 2), (256, 2), (512, 2)],
+              'base': [(512, 2)],
+              'up': [(256, 2), (128, 2), (64, 2), (64, 2)],
+              'up_method': 'bilinear',
+              'add_se': True},
+    'unet2': {'out_channels': 2,
+              'down': [(64, 2), (128, 2), (256, 2), (512, 2)],
+              'base': [(512, 2)],
+              'up': [(256, 2), (128, 2), (64, 2), (64, 2)],
+              'up_method': 'bilinear',
+              'add_se': True},
+    'concat': 'input'
+}

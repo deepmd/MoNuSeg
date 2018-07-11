@@ -1,6 +1,4 @@
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
+from ..se_parts import *
 
 
 class bottleneck(nn.Module):
@@ -36,29 +34,30 @@ class conv(nn.Module):
 
 
 class down(nn.Module):
-    def __init__(self, in_ch, out_ch, n):
+    def __init__(self, in_ch, out_ch, n, add_se=False):
         super(down, self).__init__()
         self.conv = conv(in_ch, out_ch, n)
         self.down = nn.MaxPool2d(2)
+        self.se = scSE_block(out_ch, 2) if add_se else (lambda x: x)
 
     def forward(self, x):
         before_pool = self.conv(x)
+        before_pool = self.se(before_pool)
         x = self.down(before_pool)
         return x, before_pool
 
 
 class up(nn.Module):
-    def __init__(self, in_ch1, in_ch2, out_ch, n, bilinear=True):
+    def __init__(self, in_ch1, in_ch2, out_ch, n, bilinear=True, add_se=False):
         super(up, self).__init__()
-
         #  would be a nice idea if the upsampling could be learned too,
         #  but my machine do not have enough memory to handle all those weights
         if bilinear:
             self.up = nn.Upsample(scale_factor=2)
         else:
             self.up = nn.ConvTranspose2d(in_ch1 + in_ch2, out_ch, 2, stride=2)
-
         self.conv = conv(in_ch1 + in_ch2, out_ch, n)
+        self.se = scSE_block(out_ch, 2) if add_se else (lambda x: x)
 
     def forward(self, x1, x2):
         x1 = self.up(x1)
@@ -68,6 +67,7 @@ class up(nn.Module):
                         diffY // 2, int(diffY / 2)))
         x = torch.cat([x2, x1], dim=1)
         x = self.conv(x)
+        x = self.se(x)
         return x
 
 
@@ -82,15 +82,17 @@ class outconv(nn.Module):
 
 
 class down_merge(nn.Module):
-    def __init__(self, in_ch1, in_ch2, out_ch, n):
+    def __init__(self, in_ch1, in_ch2, out_ch, n, add_se=False):
         super(down_merge, self).__init__()
         self.conv = conv(in_ch1, out_ch, n)
         self.bottleneck = bottleneck(out_ch + in_ch2, out_ch)
         self.down = nn.MaxPool2d(2)
+        self.se = scSE_block(out_ch, 2) if add_se else (lambda x: x)
 
     def forward(self, x1, x2):
         x = self.conv(x1)
         x = torch.cat([x, x2], dim=1)
         before_pool = self.bottleneck(x)
+        before_pool = self.se(before_pool)
         x = self.down(before_pool)
         return x, before_pool

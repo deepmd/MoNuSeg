@@ -133,7 +133,7 @@ def train_model(model, criterion1, criterion2, optimizer, scheduler = None, save
     time_elapsed = time.time() - since
     print('Training complete in {:.0f}m {:.0f}s'.format(
         time_elapsed // 60, time_elapsed % 60))
-    print('Best Val: {:.4f}'.format(best_val))
+    print('Best Val: {:.4f}'.format(abs(best_val)))
 
     # load best model weights
     model.load_state_dict(best_model_wts)
