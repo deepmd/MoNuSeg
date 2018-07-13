@@ -22,14 +22,14 @@ def criterion_BCE_SoftDice(logits, labels, dice_w=None, use_weight=False):
             kernel_size = 41
         a = F.avg_pool2d(labels[:, 0], kernel_size=kernel_size, padding=kernel_size // 2, stride=1)
         border = (a.ge(0.01) * a.le(0.99)).float()
-        weights = torch.ones(a.shape, requires_grad=True).cuda(async=True)
+        weights = torch.ones(a.shape).cuda(async=True)
         w0 = weights.sum()
         weights = weights + border*2
         w1 = weights.sum()
         weights = weights * (w0 / w1)
         weights = weights.repeat((C, 1, 1)).reshape(labels.shape)
     else:
-        weights = torch.ones(labels.shape, requires_grad=True).cuda(async=True)
+        weights = torch.ones(labels.shape).cuda(async=True)
 
     loss = WeightedBCELoss2d()(logits, labels, weights)
     for d in range(C):

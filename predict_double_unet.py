@@ -35,10 +35,10 @@ def post_processing_randomwalk(pred, dilation=None):
     return labels
 
 ########################### Config Predict ##############################
-net = DoubleWiredUNet(DOUBLE_UNET_CONFIG_3).cuda()
-weight_path = os.path.join(WEIGHTS_DIR, 'double-unet-0.4400.pth')
+net = DoubleWiredUNet(DOUBLE_UNET_CONFIG_1).cuda()
+weight_path = os.path.join(WEIGHTS_DIR, 'double-wired-unet-128-0.4577.pth')
 net.load_state_dict(torch.load(weight_path))
-output_path = 'DWUNET'
+output_path = 'DWUNET9'
 output_path = os.path.join(OUTPUT_DIR, output_path)
 if not os.path.exists(output_path):
     os.makedirs(output_path)
@@ -54,8 +54,8 @@ for test_id in TEST_IDS:
     img_path = os.path.join(INPUT_DIR, IMAGES_DIR, test_id+'.tif')
     img = cv2.imread(img_path)
     img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-    pred = predict(model, img, 256, 256, 64, 64)
-    pred_labels = post_processing_watershed(pred)
+    pred = predict(model, img, 128, 128, 32, 32)
+    pred_labels = post_processing_watershed(pred, dilation=1)
     num_labels = np.max(pred_labels)
     colored_labels = \
         skimage.color.label2rgb(pred_labels, colors=helper.get_spaced_colors(num_labels)).astype(np.uint8)
@@ -80,7 +80,7 @@ for test_id in TEST_IDS:
 
     mask_path = os.path.join(INPUT_DIR, MASKS_DIR, test_id+'.png')
     gt_mask = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE) / 255
-    pred_mask = pred[0] #skmorph.dilation(pred[0], skmorph.disk(1))
+    pred_mask = skmorph.dilation(pred[0], skmorph.disk(1))
     dice = dice_index(pred_mask, gt_mask)
     sum_dice += dice
     print('{}\'s Dice Index: {:.4f}'.format(test_id, dice))

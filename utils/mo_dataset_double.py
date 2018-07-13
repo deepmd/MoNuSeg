@@ -59,7 +59,8 @@ class MODatasetDouble(Dataset):
         labels = [labels == label for label in np.unique(labels) if label != 0]
         if self.erosion is not None:
             labels = [skmorph.erosion(label, skmorph.disk(self.erosion)) for label in labels]
-        labels = np.stack(labels, axis=-1).astype(np.uint8)
+        labels = np.stack(labels, axis=-1).astype(np.uint8) if len(labels) > 0 else \
+            np.zeros((img.shape[0], img.shape[1], 1), dtype=np.uint8)
         mask = np.sum(labels > 0, axis=-1).astype(np.uint8)
 
         if self.transform is not None:
