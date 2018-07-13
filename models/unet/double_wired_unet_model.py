@@ -22,7 +22,7 @@ class DoubleWiredUNet(DoubleUNet):
             x = base(x)
         for up, d_out in zip(self.unet1.ups, reversed(unet1_d_outs)):
             x = up(x, d_out)
-        output1 = self.unet1.outc(x)
+        output1 = F.sigmoid(self.unet1.outc(x))
 
         if self.concat == 'input':
             x = torch.cat([inp, output1], dim=1)

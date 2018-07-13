@@ -145,8 +145,8 @@ def train_model(model, criterion1, criterion2, optimizer, scheduler = None, save
 
 net = DoubleWiredUNet(DOUBLE_UNET_CONFIG_1).cuda()
 
-def criterion1(logits, labels, areas):
-    return criterion_AngularError(logits, labels, weights=areas)
+def criterion1(probs, labels, areas):
+    return criterion_AngularError(probs, labels, areas)
 
 def criterion2(logits, labels):
     return criterion_BCE_SoftDice(logits, labels, dice_w=[0.3, 0.7], use_weight=False)

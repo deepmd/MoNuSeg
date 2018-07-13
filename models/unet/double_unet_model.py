@@ -19,12 +19,13 @@ class DoubleUNet(nn.Module):
 
     def forward(self, x):
         if self.concat == 'input':
-            output1 = self.unet1(x)
+            output1 = F.sigmoid(self.unet1(x))
             x = torch.cat([x, output1], dim=1)
         elif self.concat == 'penultimate':
             penultimate, output1 = self.unet1(x)
+            output1 = F.sigmoid(output1)
             x = torch.cat([penultimate, output1], dim=1)
         else:
-            x = output1 = self.unet1(x)
+            x = output1 = F.sigmoid(self.unet1(x))
         output2 = self.unet2(x)
         return output1, output2

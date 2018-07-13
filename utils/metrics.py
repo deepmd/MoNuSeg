@@ -1,9 +1,12 @@
 from common import *
 
 
-def criterion_AngularError(logits, labels, weights):
-    loss = AngularErrorLoss()(logits[:, :2], labels[:, :2], weights) + \
-           AngularErrorLoss()(logits[:, 2:], labels[:, 2:], weights)
+def criterion_AngularError(probs, labels, areas):
+    eps = 10**-6
+    weights = torch.gt(areas, 0).float() / torch.sqrt(areas+eps)
+    # weights = weights / (weights.max()+eps)
+    loss = AngularErrorLoss()(probs[:, :2], labels[:, :2], weights) + \
+           AngularErrorLoss()(probs[:, 2:], labels[:, 2:], weights)
 
     return loss
 
@@ -81,13 +84,12 @@ class AngularErrorLoss(nn.Module):
     def __init__(self):
         super(AngularErrorLoss, self).__init__()
 
-    def forward(self, logits, labels, weights):
-        probs = F.sigmoid(logits)
+    def forward(self, probs, labels, weights):
         probs = F.normalize(probs, p=2, dim=1) * 0.999999  # multiplying by 0.999999 prevents 'nan'!
         dot_prods = torch.sum(probs * labels, 1)
         dot_prods = dot_prods.clamp(-1, 1)
         error_angles = torch.acos(dot_prods)
-        loss = torch.sum(error_angles * error_angles * weights)
+        loss = torch.mean(error_angles * error_angles * weights)
         return loss
 
 
