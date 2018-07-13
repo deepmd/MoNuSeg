@@ -1,12 +1,13 @@
 from common import *
 
 
-def criterion_AngularError(probs, labels, areas):
-    eps = 10**-6
-    weights = torch.gt(areas, 0).float() / torch.sqrt(areas+eps)
+def criterion_AngularError(logits, labels, areas):
+    # eps = 10**-6
+    # weights = torch.gt(areas, 0).float() / torch.sqrt(areas+eps)
     # weights = weights / (weights.max()+eps)
-    loss = AngularErrorLoss()(probs[:, :2], labels[:, :2], weights) + \
-           AngularErrorLoss()(probs[:, 2:], labels[:, 2:], weights)
+    weights = areas
+    loss = AngularErrorLoss()(logits[:, :2], labels[:, :2], weights) + \
+           AngularErrorLoss()(logits[:, 2:], labels[:, 2:], weights)
 
     return loss
 
@@ -84,12 +85,14 @@ class AngularErrorLoss(nn.Module):
     def __init__(self):
         super(AngularErrorLoss, self).__init__()
 
-    def forward(self, probs, labels, weights):
+    def forward(self, logits, labels, weights):
+        # probs = F.tanh(logits)
+        probs = F.sigmoid(logits)
         probs = F.normalize(probs, p=2, dim=1) * 0.999999  # multiplying by 0.999999 prevents 'nan'!
         dot_prods = torch.sum(probs * labels, 1)
         dot_prods = dot_prods.clamp(-1, 1)
         error_angles = torch.acos(dot_prods)
-        loss = torch.mean(error_angles * error_angles * weights)
+        loss = torch.sum(error_angles * error_angles * weights)
         return loss
 
 
@@ -160,7 +163,9 @@ def aggregated_jaccard(pred_labels, gt_labels):
     for gt_l in range(1, gt_labels.max()+1):
         gt_label = (gt_labels == gt_l).astype(np.int)
         max_iou = 0
-        meeting_pred_ls = np.unique(pred_labels * gt_label)
+        meeting_pred_ls = [p for p in np.unique(pred_labels * gt_label) if p != 0]
+        if len(meeting_pred_ls) == 0:
+            U += gt_label.sum()
         for pred_l in meeting_pred_ls:
             if pred_l not in pred_ls:
                 continue
