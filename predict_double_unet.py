@@ -41,9 +41,9 @@ def post_processing_randomwalk(pred, dilation=None):
 ########################### Config Predict ##############################
 net = DoubleWiredUNet(DOUBLE_UNET_CONFIG_1).cuda()
 
-weight_path = os.path.join(WEIGHTS_DIR, 'double-wired-unet-0.4495.pth')
+weight_path = os.path.join(WEIGHTS_DIR, 'test2/dwunet3_20_1e-04_0.2651.pth')
 net.load_state_dict(torch.load(weight_path))
-output_path = 'DWUNET4'
+output_path = 'DWUNET7'
 output_path = os.path.join(OUTPUT_DIR, output_path)
 if not os.path.exists(output_path):
     os.makedirs(output_path)

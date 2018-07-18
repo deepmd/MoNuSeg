@@ -10,7 +10,7 @@ class DoubleWiredUNet(DoubleUNet):
         self.unet2 = UNet2(config['unet2'], config['unet1'])
         self.l2_norm = normalize()
 
-    def forward(self, x):
+    def forward(self, x, mask=None):
         unet1_d_outs = []
         unet2_d_outs = []
         inp = x if self.concat == 'input' else None
@@ -27,11 +27,11 @@ class DoubleWiredUNet(DoubleUNet):
         output1 = self.l2_norm(output1)
 
         if self.concat == 'input':
-            x = torch.cat([inp, output1], dim=1)
+            x = torch.cat([inp, output1], dim=1) if mask is None else torch.cat([inp, output1*mask], dim=1)
         elif self.concat == 'penultimate':
-            x = torch.cat([x, output1], dim=1)
+            x = torch.cat([x, output1], dim=1) if mask is None else torch.cat([x, output1*mask], dim=1)
         else:
-            x = output1
+            x = output1 if mask is None else output1*mask
 
         # UNet2
         for down, d_out1 in zip(self.unet2.downs, unet1_d_outs):

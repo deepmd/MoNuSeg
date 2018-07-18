@@ -93,9 +93,8 @@ class AngularErrorLoss(nn.Module):
         dot_prods = torch.sum(logits * labels, 1)
         dot_prods = dot_prods.clamp(-1, 1)
         error_angles = torch.acos(dot_prods)
-        loss = torch.sum(error_angles * error_angles * weights)
-        # loss = torch.mean(error_angles * error_angles * weights)
-
+        # loss = torch.sum(error_angles * error_angles * weights)
+        loss = torch.mean(error_angles * error_angles * weights)
         return loss
 
 

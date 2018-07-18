@@ -92,7 +92,7 @@ def train_model(model, criterion1, criterion2, optimizer, scheduler = None, save
                 areas = torch.tensor(samples['areas'], dtype=torch.float).cuda(async=True)
 
                 # forward
-                outputs1, outputs2 = model(inputs)
+                outputs1, outputs2 = model(inputs, torch.gt(areas, 0).float())
                 loss1 = criterion1(outputs1, targets1, areas) if criterion1 is not None else 0
                 loss2 = criterion2(outputs2, targets2) if criterion2 is not None else 0
                 loss = loss1 + loss2
@@ -164,7 +164,7 @@ print('\n---------------- Training first unet ----------------')
 
 for param in net.unet2.parameters():
     param.requires_grad = False
-save_path = os.path.join(WEIGHTS_DIR, 'final/dwunet1_{:d}_{:.0e}_{:.4f}.pth')
+save_path = os.path.join(WEIGHTS_DIR, 'test2/dwunet1_{:d}_{:.0e}_{:.4f}.pth')
 optimizer = optim.SGD(filter(lambda p:  p.requires_grad, net.parameters()), lr=0.001,
                       momentum=0.9, weight_decay=0.0001)
 exp_lr_scheduler = lr_scheduler.ReduceLROnPlateau(optimizer, patience=10, verbose=True)
@@ -175,16 +175,16 @@ for param in net.unet1.parameters():
     param.requires_grad = False
 for param in net.unet2.parameters():
     param.requires_grad = True
-save_path = os.path.join(WEIGHTS_DIR, 'final/dwunet2_{:d}_{:.0e}_{:.4f}.pth')
+save_path = os.path.join(WEIGHTS_DIR, 'test2/dwunet2_{:d}_{:.0e}_{:.4f}.pth')
 optimizer = optim.SGD(filter(lambda p:  p.requires_grad, net.parameters()), lr=0.001,
                       momentum=0.9, weight_decay=0.0001)
-exp_lr_scheduler = lr_scheduler.ReduceLROnPlateau(optimizer, patience=20, verbose=True)
+exp_lr_scheduler = lr_scheduler.ReduceLROnPlateau(optimizer, patience=10, verbose=True)
 net = train_model(net, None, criterion2, optimizer, exp_lr_scheduler, save_path, num_epochs=10, compare_Loss=True)
 
 print('\n---------------- Fine-tuning entire net ----------------')
 for param in net.unet1.parameters():
     param.requires_grad = True
-save_path = os.path.join(WEIGHTS_DIR, 'final/dwunet3_{:d}_{:.0e}_{:.4f}.pth')
+save_path = os.path.join(WEIGHTS_DIR, 'test2/dwunet3_{:d}_{:.0e}_{:.4f}.pth')
 optimizer = optim.SGD(filter(lambda p:  p.requires_grad, net.parameters()), lr=0.001,
                       momentum=0.9, weight_decay=0.0001)
 exp_lr_scheduler = lr_scheduler.ReduceLROnPlateau(optimizer, patience=10, verbose=True)
