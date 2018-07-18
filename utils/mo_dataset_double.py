@@ -33,6 +33,7 @@ class MODatasetDouble(Dataset):
                 np.savetxt(patch_info_path, self.patch_coords, delimiter=',', fmt='%d')
         self.images = {}
         self.labels = {}
+        self.gt_masks = {}
         for img_id in ids:
             img_path = os.path.join(self.root_dir, IMAGES_DIR, img_id+'.tif')
             img = cv2.imread(img_path)
@@ -41,6 +42,9 @@ class MODatasetDouble(Dataset):
             labels_path = os.path.join(self.root_dir, LABELS_DIR, img_id+'.npy')
             labels = np.load(labels_path)
             self.labels[img_id] = labels
+            gt_mask_path = os.path.join(self.root_dir, MASKS_DIR, img_id+'.png')
+            gt_mask = cv2.imread(gt_mask_path, cv2.IMREAD_GRAYSCALE)
+            self.gt_masks[img_id] = (gt_mask / 255).astype(np.uint8)
 
     def __len__(self):
         return len(self.ids)
@@ -48,6 +52,9 @@ class MODatasetDouble(Dataset):
     def __getitem__(self, idx):
         img = self.images[self.ids[idx]]
         labels = self.labels[self.ids[idx]]
+        gt_mask = self.gt_masks[self.ids[idx]]
+
+        img = img * np.repeat(gt_mask[:, :, np.newaxis], img.shape[-1], axis=2)
 
         if self.patch_coords is not None:
             y1, x1, y2, x2 = self.patch_coords[idx]
@@ -158,6 +165,6 @@ def run_check_vectors(transform=None, num_vectors=10):
 # main #################################################################
 if __name__ == '__main__':
     print('%s: calling main function ... ' % os.path.basename(__file__))
-    # run_check_dataset(train_transforms)
-    run_check_vectors(train_transforms, 50)
+    run_check_dataset(train_transforms)
+    # run_check_vectors(train_transforms, 50)
     print('\nsuccess!')

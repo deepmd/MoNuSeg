@@ -37,4 +37,5 @@ class UNet(nn.Module):
         for up, d_out in zip(self.ups, reversed(d_outs)):
             x = up(x, d_out)
         y = self.outc(x)
+
         return (x, y) if self.penultimate_output else y

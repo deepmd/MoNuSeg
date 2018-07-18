@@ -1,11 +1,15 @@
 from common import *
 
 
+def criterion_MSELoss(logits, labels):
+    return F.mse_loss(logits, labels)
+
+
 def criterion_AngularError(logits, labels, areas):
-    # eps = 10**-6
-    # weights = torch.gt(areas, 0).float() / torch.sqrt(areas+eps)
-    # weights = weights / (weights.max()+eps)
-    weights = areas
+    eps = 10 ** -6
+    weights = torch.gt(areas, 0).float() / torch.sqrt(areas+eps)
+    weights = weights / (weights.max()+eps)
+    # weights = areas
     loss = AngularErrorLoss()(logits[:, :2], labels[:, :2], weights) + \
            AngularErrorLoss()(logits[:, 2:], labels[:, 2:], weights)
 
@@ -87,12 +91,16 @@ class AngularErrorLoss(nn.Module):
 
     def forward(self, logits, labels, weights):
         # probs = F.tanh(logits)
-        probs = F.sigmoid(logits)
-        probs = F.normalize(probs, p=2, dim=1) * 0.999999  # multiplying by 0.999999 prevents 'nan'!
-        dot_prods = torch.sum(probs * labels, 1)
+        # probs = F.sigmoid(logits)
+        # norm_logits = F.normalize(logits, p=2, dim=1) * 0.999999  # multiplying by 0.999999 prevents 'nan'!
+        # norm_labels = F.normalize(labels, p=2, dim=1) * 0.999999  # multiplying by 0.999999 prevents 'nan'!
+
+        dot_prods = torch.sum(logits * labels, 1)
         dot_prods = dot_prods.clamp(-1, 1)
         error_angles = torch.acos(dot_prods)
         loss = torch.sum(error_angles * error_angles * weights)
+        # loss = torch.mean(error_angles * error_angles * weights)
+
         return loss
 
 

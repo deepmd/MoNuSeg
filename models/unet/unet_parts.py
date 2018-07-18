@@ -96,3 +96,11 @@ class down_merge(nn.Module):
         before_pool = self.se(before_pool)
         x = self.down(before_pool)
         return x, before_pool
+
+
+class normalize(nn.Module):
+    def forward(self, x):
+        x[:, :2] = F.normalize(x[:, :2].clone(), p=2, dim=1) * 0.999999  # multiplying by 0.999999 prevents 'nan'!
+        x[:, 2:] = F.normalize(x[:, 2:].clone(), p=2, dim=1) * 0.999999  # multiplying by 0.999999 prevents 'nan'!
+
+        return x

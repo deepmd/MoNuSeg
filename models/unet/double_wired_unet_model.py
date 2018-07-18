@@ -8,6 +8,7 @@ class DoubleWiredUNet(DoubleUNet):
         if len(config['unet1']['down']) != len(config['unet2']['down']):
             raise ValueError('Length of \'down\' of both UNets should be the same.')
         self.unet2 = UNet2(config['unet2'], config['unet1'])
+        self.l2_norm = normalize()
 
     def forward(self, x):
         unet1_d_outs = []
@@ -23,6 +24,7 @@ class DoubleWiredUNet(DoubleUNet):
         for up, d_out in zip(self.unet1.ups, reversed(unet1_d_outs)):
             x = up(x, d_out)
         output1 = self.unet1.outc(x)
+        output1 = self.l2_norm(output1)
 
         if self.concat == 'input':
             x = torch.cat([inp, output1], dim=1)

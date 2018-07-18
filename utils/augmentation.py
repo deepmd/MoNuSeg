@@ -39,7 +39,8 @@ def get_train_augmenters_seq():
                 shear=(-16, 16),
                 order=[0, 1],
                 cval=0,
-                mode='edge'
+                mode='constant'
+                # mode='edge'
             )),
 
             # In some images distort local areas with varying strength.
@@ -47,7 +48,8 @@ def get_train_augmenters_seq():
                 scale=(0.01, 0.1),
                 order=[0, 1],
                 cval=0,
-                mode='edge'
+                mode='constant'
+                # mode='edge'
             )),
 
             # Execute 0 to 2 of the following (less important) augmenters per

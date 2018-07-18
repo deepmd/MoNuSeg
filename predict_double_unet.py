@@ -10,6 +10,7 @@ from skimage import segmentation as skseg
 init.set_results_reproducible()
 init.init_torch()
 
+
 ############################# PostProcessing ##################################
 def post_processing_watershed(pred, dilation=None):
     mask = pred[0] >= 0.5
@@ -23,6 +24,7 @@ def post_processing_watershed(pred, dilation=None):
         labels = skmorph.dilation(labels, skmorph.disk(dilation))
     return labels
 
+
 def post_processing_randomwalk(pred, dilation=None):
     mask = pred[0] >= 0.5
     centroids = pred[-1] >= 0.5
@@ -34,11 +36,13 @@ def post_processing_randomwalk(pred, dilation=None):
         labels = skmorph.dilation(labels, skmorph.disk(dilation))
     return labels
 
+
 ########################### Config Predict ##############################
 net = DoubleWiredUNet(DOUBLE_UNET_CONFIG_1).cuda()
-weight_path = os.path.join(WEIGHTS_DIR, 'double-wired-unet-128-0.4577.pth')
+
+weight_path = os.path.join(WEIGHTS_DIR, 'final/dwunet3_6_1e-03_491.6902.pth')
 net.load_state_dict(torch.load(weight_path))
-output_path = 'DWUNET9'
+output_path = 'DWUNET13'
 output_path = os.path.join(OUTPUT_DIR, output_path)
 if not os.path.exists(output_path):
     os.makedirs(output_path)
@@ -54,6 +58,12 @@ for test_id in TEST_IDS:
     img_path = os.path.join(INPUT_DIR, IMAGES_DIR, test_id+'.tif')
     img = cv2.imread(img_path)
     img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+
+    # gated the image with binary ground truth mask
+    mask_path = os.path.join(INPUT_DIR, INSIDE_MASKS_DIR, test_id+'.png')
+    mask = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE) / 255
+    img = img * np.repeat(mask[:, :, np.newaxis], img.shape[-1], axis=2)
+
     pred = predict(model, img, 128, 128, 32, 32)
     pred_labels = post_processing_watershed(pred, dilation=1)
     num_labels = np.max(pred_labels)
@@ -73,7 +83,7 @@ for test_id in TEST_IDS:
     # cv2.waitKey(0)
 
     labels_path = os.path.join(INPUT_DIR, LABELS_DIR, test_id+'.npy')
-    gt_labels = np.load(labels_path)
+    gt_labels = np.load(labels_path).astype(np.uint8)
     agg_jac = aggregated_jaccard(pred_labels, gt_labels)
     sum_agg_jac += agg_jac
     print('{}\'s Aggregated Jaccard Index: {:.4f}'.format(test_id, agg_jac))
