@@ -6,6 +6,7 @@ from utils import helper
 from utils.prediction import predict
 from models.unet import DoubleUNet, DoubleWiredUNet
 from skimage import segmentation as skseg
+import scipy.io as sio
 
 init.set_results_reproducible()
 init.init_torch()
@@ -72,6 +73,7 @@ for test_id in TEST_IDS:
     pred_labels_path = os.path.join(output_path, LABELS_DIR, test_id)
     pred_colored_labels_path = os.path.join(output_path, test_id+'.png')
     np.save(pred_labels_path, pred_labels)
+    sio.savemat(pred_labels_path + '.mat', {'predicted_map': pred_labels}, do_compression=True)
     bgr_labels = cv2.cvtColor(colored_labels, cv2.COLOR_RGB2BGR)
     cv2.imwrite(pred_colored_labels_path, bgr_labels)
 
