@@ -8,7 +8,7 @@ def criterion_MSELoss(logits, labels):
 def criterion_AngularError(logits, labels, areas):
     eps = 10 ** -6
     weights = torch.gt(areas, 0).float() / torch.sqrt(areas+eps)
-    weights = weights / (weights.max()+eps)
+    # weights = weights / (weights.max()+eps)
     # weights = areas
     loss = AngularErrorLoss()(logits[:, :2], labels[:, :2], weights) + \
            AngularErrorLoss()(logits[:, 2:], labels[:, 2:], weights)
@@ -90,11 +90,6 @@ class AngularErrorLoss(nn.Module):
         super(AngularErrorLoss, self).__init__()
 
     def forward(self, logits, labels, weights):
-        # probs = F.tanh(logits)
-        # probs = F.sigmoid(logits)
-        # norm_logits = F.normalize(logits, p=2, dim=1) * 0.999999  # multiplying by 0.999999 prevents 'nan'!
-        # norm_labels = F.normalize(labels, p=2, dim=1) * 0.999999  # multiplying by 0.999999 prevents 'nan'!
-
         dot_prods = torch.sum(logits * labels, 1)
         dot_prods = dot_prods.clamp(-1, 1)
         error_angles = torch.acos(dot_prods)
@@ -167,31 +162,56 @@ def dice_index(pred_mask, gt_mask):
 def aggregated_jaccard(pred_labels, gt_labels):
     C = 0
     U = 0
-    pred_ls = list(range(1, pred_labels.max()+1))
-    for gt_l in range(1, gt_labels.max()+1):
+    for gt_l in [l for l in np.unique(gt_labels) if l != 0]:
         gt_label = (gt_labels == gt_l).astype(np.int)
-        max_iou = 0
         meeting_pred_ls = [p for p in np.unique(pred_labels * gt_label) if p != 0]
         if len(meeting_pred_ls) == 0:
             U += gt_label.sum()
+        max_iou = 0
         for pred_l in meeting_pred_ls:
-            if pred_l not in pred_ls:
-                continue
             pred_label = (pred_labels == pred_l).astype(np.int)
             intersection = (pred_label * gt_label).sum()
             union = pred_label.sum() + gt_label.sum() - intersection
-            eps = 10**-6
-            iou = intersection / (union+eps)
-            if (iou > max_iou):
+            iou = intersection / union
+            if iou > max_iou:
                 max_iou = iou
-                m_l = pred_l
+                m_label = pred_label
                 m_intersection = intersection
                 m_union = union
         if max_iou != 0:
             C += m_intersection
             U += m_union
-            pred_ls.remove(m_l)
-    for pred_l in pred_ls:
-        pred_label = (pred_labels == pred_l).astype(np.int)
-        U += pred_label.sum()
-    return C / U if U != 0 else 0
+            pred_labels *= 1 - m_label
+    U += (pred_labels > 0).sum()
+    return C / U
+
+
+# def aggregated_jaccard(pred_labels, gt_labels):
+#     C = 0
+#     U = 0
+#     for gt_l in [l for l in np.unique(gt_labels) if l != 0]:
+#         gt_label = (gt_labels == gt_l).astype(np.int)
+#         meeting_pred_ls = [p for p in np.unique(pred_labels * gt_label) if p != 0]
+#         max_iou = 0
+#         if len(meeting_pred_ls) == 0:
+#             m_label = (pred_labels == 1).astype(np.int)
+#             m_intersection = 0
+#             m_union = m_label.sum() + gt_label.sum()
+#         for pred_l in meeting_pred_ls:
+#             pred_label = (pred_labels == pred_l).astype(np.int)
+#             intersection = (pred_label * gt_label).sum()
+#             union = pred_label.sum() + gt_label.sum() - intersection
+#             iou = intersection / union
+#             if iou > max_iou:
+#                 max_iou = iou
+#                 m_label = pred_label
+#                 m_intersection = intersection
+#                 m_union = union
+#         C += m_intersection
+#         U += m_union
+#         pred_labels *= 1 - m_label
+#     U += (pred_labels > 0).sum()
+#     return C / U
+
+
+

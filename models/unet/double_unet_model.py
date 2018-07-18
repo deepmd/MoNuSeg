@@ -1,4 +1,4 @@
-from common import *
+from .unet_parts import *
 from ..unet import UNet
 
 
@@ -16,15 +16,17 @@ class DoubleUNet(nn.Module):
             config2['in_channels'] += config1['up'][-1][0]
         self.unet1 = UNet(config1)
         self.unet2 = UNet(config2)
+        self.l2_norm = normalize()
 
     def forward(self, x):
         if self.concat == 'input':
-            output1 = self.unet1(x)
+            output1 = self.l2_norm(self.unet1(x))
             x = torch.cat([x, output1], dim=1)
         elif self.concat == 'penultimate':
             penultimate, output1 = self.unet1(x)
+            output1 = self.l2_norm(output1)
             x = torch.cat([penultimate, output1], dim=1)
         else:
-            x = output1 = self.unet1(x)
+            x = output1 = self.l2_norm(self.unet1(x))
         output2 = self.unet2(x)
         return output1, output2

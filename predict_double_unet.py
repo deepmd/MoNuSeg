@@ -41,9 +41,9 @@ def post_processing_randomwalk(pred, dilation=None):
 ########################### Config Predict ##############################
 net = DoubleWiredUNet(DOUBLE_UNET_CONFIG_1).cuda()
 
-weight_path = os.path.join(WEIGHTS_DIR, 'final/dwunet3_6_1e-03_491.6902.pth')
+weight_path = os.path.join(WEIGHTS_DIR, 'double-wired-unet-0.4495.pth')
 net.load_state_dict(torch.load(weight_path))
-output_path = 'DWUNET13'
+output_path = 'DWUNET4'
 output_path = os.path.join(OUTPUT_DIR, output_path)
 if not os.path.exists(output_path):
     os.makedirs(output_path)
@@ -85,7 +85,7 @@ for test_id in TEST_IDS:
     # cv2.waitKey(0)
 
     labels_path = os.path.join(INPUT_DIR, LABELS_DIR, test_id+'.npy')
-    gt_labels = np.load(labels_path).astype(np.uint8)
+    gt_labels = np.load(labels_path).astype(np.int)
     agg_jac = aggregated_jaccard(pred_labels, gt_labels)
     sum_agg_jac += agg_jac
     print('{}\'s Aggregated Jaccard Index: {:.4f}'.format(test_id, agg_jac))

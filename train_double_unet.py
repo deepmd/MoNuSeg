@@ -4,8 +4,7 @@ from common import *
 from consts import *
 from utils import init
 from utils.mo_dataset_double import MODatasetDouble
-from utils.metrics import criterion_BCE_SoftDice, criterion_AngularError, dice_value, MetricMonitor
-from utils.metrics import criterion_MSELoss
+from utils.metrics import criterion_BCE_SoftDice, criterion_AngularError, criterion_MSELoss, dice_value, MetricMonitor
 from utils import augmentation
 from models.unet import DoubleUNet, DoubleWiredUNet
 
@@ -46,10 +45,10 @@ def valid_transforms(image, mask, labels):
 
 trans = {'train': train_transforms, 'valid': valid_transforms}
 all_ids = [os.path.splitext(f)[0] for f in os.listdir(os.path.join(INPUT_DIR, IMAGES_DIR))]
-# train_ids = [i for i in all_ids if i not in TEST_IDS]
-# ids_train, ids_valid = train_test_split(train_ids, test_size=0.2, random_state=42)
-ids_train = [i for i in all_ids if i not in TEST_IDS]
-ids_valid = TEST_IDS
+train_ids = [i for i in all_ids if i not in TEST_IDS]
+ids_train, ids_valid = train_test_split(train_ids, test_size=0.2, random_state=42)
+# ids_train = [i for i in all_ids if i not in TEST_IDS]
+# ids_valid = TEST_IDS
 ids = {'train': ids_train, 'valid': ids_valid}
 datasets = {x: MODatasetDouble(INPUT_DIR,
                                ids[x],
