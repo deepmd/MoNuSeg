@@ -41,16 +41,16 @@ def post_processing_randomwalk(pred, dilation=None):
 ########################### Config Predict ##############################
 net = DoubleWiredUNet(DOUBLE_UNET_CONFIG_1).cuda()
 
-weight_path = os.path.join(WEIGHTS_DIR, 'test2/dwunet3_20_1e-04_0.2651.pth')
+weight_path = os.path.join(WEIGHTS_DIR, 'dwunet3_20_1e-04_0.2651.pth')
 net.load_state_dict(torch.load(weight_path))
-output_path = 'DWUNET7'
+output_path = 'DWUNET9'
 output_path = os.path.join(OUTPUT_DIR, output_path)
 if not os.path.exists(output_path):
     os.makedirs(output_path)
     os.makedirs(os.path.join(output_path, LABELS_DIR))
 
-def model(img):
-    _, pred = net(img)
+def model(img, mask=None):
+    _, pred = net(img, mask)
     return pred
 
 sum_agg_jac = 0
@@ -65,7 +65,7 @@ for test_id in TEST_IDS:
     mask = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE) / 255
     img = img * np.repeat(mask[:, :, np.newaxis], img.shape[-1], axis=2)
 
-    pred = predict(model, img, 128, 128, 32, 32)
+    pred = predict(model, img, 128, 128, 32, 32, mask=mask)
     pred_labels = post_processing_watershed(pred, dilation=1)
     num_labels = np.max(pred_labels)
     colored_labels = \
