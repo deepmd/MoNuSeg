@@ -42,7 +42,6 @@ def predict(model, test_img, patch_height, patch_width, stride_height, stride_wi
         if mask is None:
             pred = model(sample)
         else:
-            mask = np.squeeze(mask, axis=0)
             mask = torch.tensor(mask, dtype=torch.float).cuda()
             pred = model(sample, mask)
         pred = F.sigmoid(pred)

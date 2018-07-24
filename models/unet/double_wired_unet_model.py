@@ -9,11 +9,12 @@ class DoubleWiredUNet(DoubleUNet):
             raise ValueError('Length of \'down\' of both UNets should be the same.')
         self.unet2 = UNet2(config['unet2'], config['unet1'])
         self.l2_norm = normalize()
+        self.bn = nn.BatchNorm2d(config['unet2']['in_channels'])
 
     def forward(self, x, mask=None):
         unet1_d_outs = []
         unet2_d_outs = []
-        inp = x if self.concat == 'input' else None
+        inp = x if self.concat == 'input' or self.concat == 'input-discard_out1' else None
 
         # UNet1
         for down in self.unet1.downs:
@@ -26,12 +27,20 @@ class DoubleWiredUNet(DoubleUNet):
         output1 = self.unet1.outc(x)
         output1 = self.l2_norm(output1)
 
-        if self.concat == 'input':
+        if mask is not None:
+            mask = torch.unsqueeze(mask, dim=1)
+            mask = mask.repeat((1, output1.shape[1], 1, 1))
+
+        if self.concat == 'input-discard_out1':
+            x = inp
+        elif self.concat == 'input':
             x = torch.cat([inp, output1], dim=1) if mask is None else torch.cat([inp, output1*mask], dim=1)
         elif self.concat == 'penultimate':
             x = torch.cat([x, output1], dim=1) if mask is None else torch.cat([x, output1*mask], dim=1)
         else:
             x = output1 if mask is None else output1*mask
+
+        x = self.bn(x)
 
         # UNet2
         for down, d_out1 in zip(self.unet2.downs, unet1_d_outs):
