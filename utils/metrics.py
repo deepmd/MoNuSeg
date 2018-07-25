@@ -9,7 +9,6 @@ def criterion_AngularError(logits, labels, areas):
     eps = 10 ** -6
     weights = torch.gt(areas, 0).float() / torch.sqrt(areas+eps)
     # weights = weights / (weights.max()+eps)
-    # weights = areas
     loss = AngularErrorLoss()(logits[:, :2], labels[:, :2], weights) + \
            AngularErrorLoss()(logits[:, 2:], labels[:, 2:], weights)
 
@@ -39,7 +38,7 @@ def criterion_BCE_SoftDice(logits, labels, dice_w=None, use_weight=False):
     else:
         weights = torch.ones(labels.shape).cuda(async=True)
 
-    loss = WeightedBCELoss2d()(logits, labels, weights)
+    loss = F.binary_cross_entropy_with_logits(logits, labels, weights)
     for d in range(C):
         w = 1/C if dice_w is None else dice_w[d]
         loss = loss + w * WeightedSoftDiceLoss()(logits[:, d], labels[:, d], weights[:, d])
@@ -63,25 +62,6 @@ class WeightedSoftDiceLoss(nn.Module):
         score = (2. * (w2*intersection).sum(1) + smooth) / ((w2*m1).sum(1) + (w2*m2).sum(1) + smooth)
                 # + (2. * intersection.sum(1) + smooth) / (m1.sum(1) + m2.sum(1) + smooth)
         loss = 1 - score.sum()/num
-        return loss
-
-
-class WeightedBCELoss2d(nn.Module):
-    def __init__(self):
-        super(WeightedBCELoss2d, self).__init__()
-
-    def forward(self, logits, labels, weights):
-        w = weights.view(-1)
-        z = logits.view(-1)
-        t = labels.view(-1)
-        # Pytorch implementation https://github.com/pytorch/pytorch/blob/master/torch/nn/functional.py (binary_cross_entropy_with_logits)
-        max_val = (-z).clamp(min=0)
-        loss = z - z*t + max_val + torch.log(torch.exp(-max_val) + torch.exp(-z-max_val))
-        loss = loss * w
-        loss = loss.mean()
-        # Heng implementation
-        #loss = w*z.clamp(min=0) - w*z*t + w*torch.log(1 + torch.exp(-z.abs()))
-        #loss = loss.sum()/w.sum()
         return loss
 
 
