@@ -3,11 +3,13 @@ from .double_unet_model import DoubleUNet
 from .unet_model2 import UNet2
 
 
-class DoubleWiredUNet(DoubleUNet):
+class DoubleWiredUNet_Mask(DoubleUNet):
     def __init__(self, config):
-        super(DoubleWiredUNet, self).__init__(config)
+        config['unet1']['out_channels'] += 1
+        super(DoubleWiredUNet_Mask, self).__init__(config)
         if len(config['unet1']['down']) != len(config['unet2']['down']):
             raise ValueError('Length of \'down\' of both UNets should be the same.')
+        config['unet2']['in_channels'] -= 1
         self.unet2 = UNet2(config['unet2'], config['unet1'])
         self.l2_norm = normalize()
         self.bn = nn.BatchNorm2d(config['unet2']['in_channels'])
@@ -26,20 +28,23 @@ class DoubleWiredUNet(DoubleUNet):
         for up, d_out in zip(self.unet1.ups, reversed(unet1_d_outs)):
             x = up(x, d_out)
         output1 = self.unet1.outc(x)
-        output1 = self.l2_norm(output1)
+        output1[:, :-1] = self.l2_norm(output1[:, :-1])
 
-        if mask is not None:
-            mask = torch.unsqueeze(mask, dim=1)
-            mask = mask.repeat((1, output1.shape[1], 1, 1))
+        if mask is None:
+            mask = F.sigmoid(output1[:, -1])
+
+        mask = torch.unsqueeze(mask, dim=1)
+        mask_out = mask.repeat((1, output1.shape[1]-1, 1, 1))
+        mask_in = mask.repeat((1, inp.shape[1], 1, 1)) if inp is not None else None
 
         if self.concat == 'input-discard_out1':
-            x = inp
+            x = inp*mask_in
         elif self.concat == 'input':
-            x = torch.cat([inp, output1], dim=1) if mask is None else torch.cat([inp, output1*mask], dim=1)
+            x = torch.cat([inp*mask_in, output1[:, :-1]*mask_out], dim=1)
         elif self.concat == 'penultimate':
-            x = torch.cat([x, output1], dim=1) if mask is None else torch.cat([x, output1*mask], dim=1)
+            x = torch.cat([x, output1[:, :-1]*mask_out], dim=1)
         else:
-            x = output1 if mask is None else output1*mask
+            x = output1[:, :-1]*mask_out
 
         x = self.bn(x)
 

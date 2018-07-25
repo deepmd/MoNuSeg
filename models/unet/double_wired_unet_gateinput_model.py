@@ -3,19 +3,21 @@ from .double_unet_model import DoubleUNet
 from .unet_model2 import UNet2
 
 
-class DoubleWiredUNet(DoubleUNet):
+class DoubleWiredUNet_GateInput(DoubleUNet):
     def __init__(self, config):
-        super(DoubleWiredUNet, self).__init__(config)
+        config['unet1']['out_channels'] += config['unet1']['in_channels']
+        super(DoubleWiredUNet_GateInput, self).__init__(config)
         if len(config['unet1']['down']) != len(config['unet2']['down']):
             raise ValueError('Length of \'down\' of both UNets should be the same.')
+        config['unet2']['in_channels'] -= config['unet1']['in_channels']
         self.unet2 = UNet2(config['unet2'], config['unet1'])
         self.l2_norm = normalize()
         self.bn = nn.BatchNorm2d(config['unet2']['in_channels'])
 
-    def forward(self, x, mask=None):
+    def forward(self, x):
         unet1_d_outs = []
         unet2_d_outs = []
-        inp = x if self.concat == 'input' or self.concat == 'input-discard_out1' else None
+        inp_channels = x.shape[1]
 
         # UNet1
         for down in self.unet1.downs:
@@ -26,22 +28,10 @@ class DoubleWiredUNet(DoubleUNet):
         for up, d_out in zip(self.unet1.ups, reversed(unet1_d_outs)):
             x = up(x, d_out)
         output1 = self.unet1.outc(x)
-        output1 = self.l2_norm(output1)
+        output1[:, :-inp_channels] = self.l2_norm(output1[:, :-inp_channels])
+        output1[:, -inp_channels:] = F.sigmoid(output1[:, -inp_channels:])
 
-        if mask is not None:
-            mask = torch.unsqueeze(mask, dim=1)
-            mask = mask.repeat((1, output1.shape[1], 1, 1))
-
-        if self.concat == 'input-discard_out1':
-            x = inp
-        elif self.concat == 'input':
-            x = torch.cat([inp, output1], dim=1) if mask is None else torch.cat([inp, output1*mask], dim=1)
-        elif self.concat == 'penultimate':
-            x = torch.cat([x, output1], dim=1) if mask is None else torch.cat([x, output1*mask], dim=1)
-        else:
-            x = output1 if mask is None else output1*mask
-
-        x = self.bn(x)
+        x = self.bn(output1)
 
         # UNet2
         for down, d_out1 in zip(self.unet2.downs, unet1_d_outs):
@@ -54,3 +44,4 @@ class DoubleWiredUNet(DoubleUNet):
         output2 = self.unet2.outc(x)
 
         return output1, output2
+

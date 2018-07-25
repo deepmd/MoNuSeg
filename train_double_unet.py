@@ -6,7 +6,7 @@ from utils import init
 from utils.mo_dataset_double import MODatasetDouble
 from utils.metrics import criterion_BCE_SoftDice, criterion_AngularError, criterion_MSELoss, dice_value, MetricMonitor
 from utils import augmentation
-from models.unet import DoubleUNet, DoubleWiredUNet
+from models.unet import DoubleUNet, DoubleWiredUNet, DoubleWiredUNet_GateInput, DoubleWiredUNet_Mask
 
 init.set_results_reproducible()
 init.init_torch()
@@ -55,7 +55,8 @@ datasets = {x: MODatasetDouble(INPUT_DIR,
                                num_patches=100,
                                patch_size=128,
                                transform=trans[x],
-                               erosion=1)
+                               erosion=1,
+                               gate_image=True)
            for x in ['train', 'valid']}
 dataloaders = {x: torch.utils.data.DataLoader(datasets[x],
                                               batch_size=4,
@@ -67,8 +68,8 @@ dataset_sizes = {x: len(datasets[x]) for x in ['train', 'valid']}
 
 
 ############################# Training the model ##################################
-def train_model(model, criterion1, criterion2, optimizer, scheduler = None, save_path = None,
-                num_epochs = 25, iter_size = 1, compare_Loss=False):
+def train_model(model, criterion1, criterion2, optimizer, scheduler=None, save_path=None,
+                num_epochs=25, iter_size=1, compare_Loss=False, masking=True):
     since = time.time()
     
     best_model_wts = copy.deepcopy(model.state_dict())
@@ -87,14 +88,14 @@ def train_model(model, criterion1, criterion2, optimizer, scheduler = None, save
                 # get the inputs
                 inputs = torch.tensor(samples['image'], requires_grad=True).cuda(async=True)
                 # get the targets
-                targets1 = torch.tensor(samples['vectors'], dtype=torch.float).cuda(async=True)
-                targets2 = torch.tensor(samples['masks'], dtype=torch.float).cuda(async=True)
+                vectors = torch.tensor(samples['vectors'], dtype=torch.float).cuda(async=True)
+                masks = torch.tensor(samples['masks'], dtype=torch.float).cuda(async=True)
                 areas = torch.tensor(samples['areas'], dtype=torch.float).cuda(async=True)
 
                 # forward
-                outputs1, outputs2 = model(inputs, torch.gt(areas, 0).float())
-                loss1 = criterion1(outputs1, targets1, areas) if criterion1 is not None else 0
-                loss2 = criterion2(outputs2, targets2) if criterion2 is not None else 0
+                outputs1, outputs2 = model(inputs) if not masking else model(inputs, masks[:, 0])
+                loss1 = criterion1(inputs, outputs1, vectors, masks, areas) if criterion1 is not None else 0
+                loss2 = criterion2(inputs, outputs1, vectors, masks, areas) if criterion2 is not None else 0
                 loss = loss1 + loss2
 
                 # backward + optimize only if in training phase
@@ -105,7 +106,7 @@ def train_model(model, criterion1, criterion2, optimizer, scheduler = None, save
                         optimizer.zero_grad()
 
                 # statistics
-                dice = dice_value(outputs2.data, targets2.data, [0.3, 0.7])
+                dice = dice_value(outputs2.data, masks.data, [0.3, 0.7])
                 monitor.update('loss', loss.data, inputs.shape[0])
                 monitor.update('dice', dice.data, inputs.shape[0])
                 stream.set_description(
@@ -146,25 +147,31 @@ def train_model(model, criterion1, criterion2, optimizer, scheduler = None, save
 
 net = DoubleWiredUNet(DOUBLE_UNET_CONFIG_1).cuda()
 
+# for DoubleWiredUNet_GateInput
+# def criterion1(inputs, outputs, vectors, masks, areas):
+#     gated_inputs = inputs * torch.unsqueeze(masks[:, 0], 1).repeat((1, inputs.shape[1], 1, 1))
+#     return criterion_AngularError(outputs[:, :4], vectors, areas) + \
+#            criterion_MSELoss(outputs[:, 4:], gated_inputs)
 
-def criterion1(logits, labels, areas):
-    return criterion_AngularError(logits, labels, areas)
+# for DoubleWiredUNet_Mask
+# def criterion1(inputs, outputs, vectors, masks, areas):
+#     return criterion_AngularError(outputs[:, :4], vectors, areas) + \
+#            criterion_BCE_SoftDice(torch.unsqueeze(outputs[:, 4], 1), torch.unsqueeze(masks[:, 0], 1), use_weight=False)
 
-# def criterion1(logits, labels):
-#     return criterion_MSELoss(logits, labels)
+def criterion1(inputs, outputs, vectors, masks, areas):
+    return criterion_AngularError(outputs, vectors, areas)
+    # return criterion_MSELoss(logits, labels)
+
+def criterion2(inputs, outputs, vectors, masks, areas):
+    return criterion_BCE_SoftDice(outputs, masks, dice_w=[0.3, 0.7], use_weight=False)
 
 
-def criterion2(logits, labels):
-    return criterion_BCE_SoftDice(logits, labels, dice_w=[0.3, 0.7], use_weight=False)
-
-
-print('\n---------------- Training first unet ----------------')
 # weight_path = os.path.join(WEIGHTS_DIR, 'final/dwunet1_20_1e-04_10.6428.pth')
 # net.load_state_dict(torch.load(weight_path))
-
+print('\n---------------- Training first unet ----------------')
 for param in net.unet2.parameters():
     param.requires_grad = False
-save_path = os.path.join(WEIGHTS_DIR, 'test2/dwunet1_{:d}_{:.0e}_{:.4f}.pth')
+save_path = os.path.join(WEIGHTS_DIR, 'test/dwunet1_{:d}_{:.0e}_{:.4f}.pth')
 optimizer = optim.SGD(filter(lambda p:  p.requires_grad, net.parameters()), lr=0.001,
                       momentum=0.9, weight_decay=0.0001)
 exp_lr_scheduler = lr_scheduler.ReduceLROnPlateau(optimizer, patience=10, verbose=True)
@@ -175,7 +182,7 @@ for param in net.unet1.parameters():
     param.requires_grad = False
 for param in net.unet2.parameters():
     param.requires_grad = True
-save_path = os.path.join(WEIGHTS_DIR, 'test2/dwunet2_{:d}_{:.0e}_{:.4f}.pth')
+save_path = os.path.join(WEIGHTS_DIR, 'test/dwunet2_{:d}_{:.0e}_{:.4f}.pth')
 optimizer = optim.SGD(filter(lambda p:  p.requires_grad, net.parameters()), lr=0.001,
                       momentum=0.9, weight_decay=0.0001)
 exp_lr_scheduler = lr_scheduler.ReduceLROnPlateau(optimizer, patience=10, verbose=True)
@@ -184,7 +191,7 @@ net = train_model(net, None, criterion2, optimizer, exp_lr_scheduler, save_path,
 print('\n---------------- Fine-tuning entire net ----------------')
 for param in net.unet1.parameters():
     param.requires_grad = True
-save_path = os.path.join(WEIGHTS_DIR, 'test2/dwunet3_{:d}_{:.0e}_{:.4f}.pth')
+save_path = os.path.join(WEIGHTS_DIR, 'test/dwunet3_{:d}_{:.0e}_{:.4f}.pth')
 optimizer = optim.SGD(filter(lambda p:  p.requires_grad, net.parameters()), lr=0.001,
                       momentum=0.9, weight_decay=0.0001)
 exp_lr_scheduler = lr_scheduler.ReduceLROnPlateau(optimizer, patience=10, verbose=True)

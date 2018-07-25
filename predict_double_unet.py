@@ -38,65 +38,79 @@ def post_processing_randomwalk(pred, dilation=None):
     return labels
 
 
+########################### Predict ##############################
+def do_prediction(net, output_path, test_ids, patch_size, stride, dilation, gate_image, masking,
+                  post_processing, visualize=False):
+    if not os.path.exists(output_path):
+        os.makedirs(output_path)
+        os.makedirs(os.path.join(output_path, LABELS_DIR))
+
+    def model(img, mask=None):
+        if masking:
+            _, pred = net(img, mask)
+        else:
+            _, pred = net(img)
+        return pred
+
+    sum_agg_jac = 0
+    sum_dice = 0
+    for test_id in test_ids:
+        img_path = os.path.join(INPUT_DIR, IMAGES_DIR, test_id+'.tif')
+        img = cv2.imread(img_path)
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+
+        if gate_image or masking:
+            mask_path = os.path.join(INPUT_DIR, MASKS_DIR, test_id+'.png')
+            gt_mask = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE) / 255
+
+        if gate_image:
+            img = img * np.repeat(gt_mask[:, :, np.newaxis], img.shape[-1], axis=2)
+
+        pred = predict(model, img, patch_size, patch_size, stride, stride) if not masking else \
+               predict(model, img, patch_size, patch_size, stride, stride, mask=gt_mask)
+        pred_labels = post_processing(pred, dilation=dilation)
+        num_labels = np.max(pred_labels)
+        colored_labels = \
+            skimage.color.label2rgb(pred_labels, colors=helper.get_spaced_colors(num_labels)).astype(np.uint8)
+        pred_labels_path = os.path.join(output_path, LABELS_DIR, test_id)
+        pred_colored_labels_path = os.path.join(output_path, test_id+'.png')
+        np.save(pred_labels_path, pred_labels)
+        sio.savemat(pred_labels_path + '.mat', {'predicted_map': pred_labels}, do_compression=True)
+        bgr_labels = cv2.cvtColor(colored_labels, cv2.COLOR_RGB2BGR)
+        cv2.imwrite(pred_colored_labels_path, bgr_labels)
+
+        if visualize:
+            plt.imshow(img)
+            plt.imshow(colored_labels, alpha=0.5)
+            centroids = pred[-1] >= 0.5
+            plt.imshow(centroids, alpha=0.5)
+            plt.show()
+            cv2.waitKey(0)
+
+        labels_path = os.path.join(INPUT_DIR, LABELS_DIR, test_id+'.npy')
+        gt_labels = np.load(labels_path).astype(np.int)
+        agg_jac = aggregated_jaccard(pred_labels, gt_labels)
+        sum_agg_jac += agg_jac
+        print('{}\'s Aggregated Jaccard Index: {:.4f}'.format(test_id, agg_jac))
+
+        mask_path = os.path.join(INPUT_DIR, MASKS_DIR, test_id+'.png')
+        gt_mask = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE) / 255
+        pred_mask = skmorph.dilation(pred[0], skmorph.disk(dilation)) if dilation is not None else pred[0]
+        dice = dice_index(pred_mask, gt_mask)
+        sum_dice += dice
+        print('{}\'s Dice Index: {:.4f}'.format(test_id, dice))
+
+    print('--------------------------------------')
+    print('Mean Aggregated Jaccard Index: {:.4f}'.format(sum_agg_jac/len(test_ids)))
+    print('Mean Dice Index: {:.4f}'.format(sum_dice/len(test_ids)))
+
+
 ########################### Config Predict ##############################
-net = DoubleWiredUNet(DOUBLE_UNET_CONFIG_1).cuda()
+net = DoubleWiredUNet(DOUBLE_UNET_CONFIG_4).cuda()
 
-weight_path = os.path.join(WEIGHTS_DIR, 'dwunet3_20_1e-04_0.2651.pth')
+weight_path = os.path.join(WEIGHTS_DIR, 'test/dwunet3_18_1e-04_0.3610.pth')
 net.load_state_dict(torch.load(weight_path))
-output_path = 'DWUNET9'
-output_path = os.path.join(OUTPUT_DIR, output_path)
-if not os.path.exists(output_path):
-    os.makedirs(output_path)
-    os.makedirs(os.path.join(output_path, LABELS_DIR))
+output_path = os.path.join(OUTPUT_DIR, 'DWUNET9')
 
-def model(img, mask=None):
-    _, pred = net(img, mask)
-    return pred
-
-sum_agg_jac = 0
-sum_dice = 0
-for test_id in TEST_IDS:
-    img_path = os.path.join(INPUT_DIR, IMAGES_DIR, test_id+'.tif')
-    img = cv2.imread(img_path)
-    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-
-    # gated the image with binary ground truth mask
-    mask_path = os.path.join(INPUT_DIR, INSIDE_MASKS_DIR, test_id+'.png')
-    mask = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE) / 255
-    img = img * np.repeat(mask[:, :, np.newaxis], img.shape[-1], axis=2)
-
-    pred = predict(model, img, 128, 128, 32, 32, mask=mask)
-    pred_labels = post_processing_watershed(pred, dilation=1)
-    num_labels = np.max(pred_labels)
-    colored_labels = \
-        skimage.color.label2rgb(pred_labels, colors=helper.get_spaced_colors(num_labels)).astype(np.uint8)
-    pred_labels_path = os.path.join(output_path, LABELS_DIR, test_id)
-    pred_colored_labels_path = os.path.join(output_path, test_id+'.png')
-    np.save(pred_labels_path, pred_labels)
-    sio.savemat(pred_labels_path + '.mat', {'predicted_map': pred_labels}, do_compression=True)
-    bgr_labels = cv2.cvtColor(colored_labels, cv2.COLOR_RGB2BGR)
-    cv2.imwrite(pred_colored_labels_path, bgr_labels)
-
-    # plt.imshow(img)
-    # plt.imshow(colored_labels, alpha=0.5)
-    # centroids = pred[-1] >= 0.5
-    # plt.imshow(centroids, alpha=0.5)
-    # plt.show()
-    # cv2.waitKey(0)
-
-    labels_path = os.path.join(INPUT_DIR, LABELS_DIR, test_id+'.npy')
-    gt_labels = np.load(labels_path).astype(np.int)
-    agg_jac = aggregated_jaccard(pred_labels, gt_labels)
-    sum_agg_jac += agg_jac
-    print('{}\'s Aggregated Jaccard Index: {:.4f}'.format(test_id, agg_jac))
-
-    mask_path = os.path.join(INPUT_DIR, MASKS_DIR, test_id+'.png')
-    gt_mask = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE) / 255
-    pred_mask = skmorph.dilation(pred[0], skmorph.disk(1))
-    dice = dice_index(pred_mask, gt_mask)
-    sum_dice += dice
-    print('{}\'s Dice Index: {:.4f}'.format(test_id, dice))
-
-print('--------------------------------------')
-print('Mean Aggregated Jaccard Index: {:.4f}'.format(sum_agg_jac/len(TEST_IDS)))
-print('Mean Dice Index: {:.4f}'.format(sum_dice/len(TEST_IDS)))
+do_prediction(net, output_path, TEST_IDS, patch_size=128, stride=32, dilation=1,
+              gate_image=True, masking=True, post_processing=post_processing_watershed)

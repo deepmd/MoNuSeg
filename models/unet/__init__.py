@@ -1,3 +1,5 @@
 from .unet_model import UNet
 from .double_unet_model import DoubleUNet
 from .double_wired_unet_model import DoubleWiredUNet
+from .double_wired_unet_gateinput_model import DoubleWiredUNet_GateInput
+from .double_wired_unet_mask_model import DoubleWiredUNet_Mask
