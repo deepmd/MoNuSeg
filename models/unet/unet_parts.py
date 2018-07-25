@@ -48,12 +48,12 @@ class down(nn.Module):
 
 
 class up(nn.Module):
-    def __init__(self, in_ch1, in_ch2, out_ch, n, bilinear=True, add_se=False):
+    def __init__(self, in_ch1, in_ch2, out_ch, n, method='nearest', add_se=False):
         super(up, self).__init__()
-        #  would be a nice idea if the upsampling could be learned too,
-        #  but my machine do not have enough memory to handle all those weights
-        if bilinear:
-            self.up = nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)
+        if method == 'nearest':
+            self.up = nn.Upsample(scale_factor=2, mode=method)
+        elif method in {'linear', 'bilinear', 'trilinear'}:
+            self.up = nn.Upsample(scale_factor=2, mode=method, align_corners=True)
         else:
             self.up = nn.ConvTranspose2d(in_ch1 + in_ch2, out_ch, 2, stride=2)
         self.conv = conv(in_ch1 + in_ch2, out_ch, n)

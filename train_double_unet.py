@@ -95,7 +95,7 @@ def train_model(model, criterion1, criterion2, optimizer, scheduler=None, save_p
                 # forward
                 outputs1, outputs2 = model(inputs) if not masking else model(inputs, masks[:, 0])
                 loss1 = criterion1(inputs, outputs1, vectors, masks, areas) if criterion1 is not None else 0
-                loss2 = criterion2(inputs, outputs1, vectors, masks, areas) if criterion2 is not None else 0
+                loss2 = criterion2(inputs, outputs2, vectors, masks, areas) if criterion2 is not None else 0
                 loss = loss1 + loss2
 
                 # backward + optimize only if in training phase
