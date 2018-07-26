@@ -42,18 +42,20 @@ def criterion_BCE_SoftDice(input, target, dice_w=None, use_weight=False):
         weight = None
 
     loss = F.binary_cross_entropy_with_logits(input, target, weight) + \
-           soft_dice_loss_with_logits(input, target, weight, dice_w)
+           dice_loss_with_logits(input, target, weight, dice_w)
 
     return loss
 
 
-def soft_dice_loss_with_logits(input, target, weight=None, dice_w=None):
+def dice_loss_with_logits(input, target, weight=None, dice_w=None):
     probs = F.sigmoid(input)
     C = target.shape[1]
     loss = 0
     w = [1/C]*C if dice_w is None else dice_w
     for d in range(C):
         loss += w[d] * (1 - soft_dice_1d(probs[:, d], target[:, d], None if weight is None else weight[:, d]))
+    return loss
+
 
 
 def angular_error(input, target, weight):
@@ -66,11 +68,12 @@ def angular_error(input, target, weight):
 
 
 def dice_value(input, target, dice_w=None):
+    probs = F.sigmoid(input)
     C = target.shape[1]
     dice = 0
-    w = [1/C]*C if dice_w is None else dice_w
+    w = [1 / C] * C if dice_w is None else dice_w
     for d in range(C):
-        dice += w[d] * soft_dice_1d(input[:, d], target[:, d])
+        dice += w[d] * soft_dice_1d(probs[:, d], target[:, d], None if weight is None else weight[:, d])
     return dice
 
 
