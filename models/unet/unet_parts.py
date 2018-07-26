@@ -99,8 +99,14 @@ class down_merge(nn.Module):
 
 
 class normalize(nn.Module):
+    def __init__(self, vectors_count=2):
+        super(normalize, self).__init__()
+        self.vectors_count = vectors_count
+
     def forward(self, x):
-        x[:, :2] = F.normalize(x[:, :2].clone(), p=2, dim=1) * 0.999999  # multiplying by 0.999999 prevents 'nan'!
-        x[:, 2:] = F.normalize(x[:, 2:].clone(), p=2, dim=1) * 0.999999  # multiplying by 0.999999 prevents 'nan'!
+        C = x.shape[1]
+        vectors_dims = C // self.vectors_count
+        for i in range(0, C, vectors_dims):
+            x[:, i:i+vectors_dims] = F.normalize(x[:, i:i+vectors_dims].clone(), p=2, dim=1) * 0.999999  # multiplying by 0.999999 prevents 'nan'!
 
         return x

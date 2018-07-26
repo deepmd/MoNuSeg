@@ -112,3 +112,17 @@ DOUBLE_UNET_CONFIG_6 = {
               'up_method': 'nearest'},
     'concat': 'input-discard_out1'
 }
+
+DOUBLE_UNET_CONFIG_7 = {
+    'unet1': {'in_channels': 3, 'out_channels': 6,
+              'down': [(64, 2), (128, 2), (256, 2), (512, 2)],
+              'base': [(512, 2)],
+              'up'  : [(256, 2), (128, 2), (64, 2), (64, 2)],
+              'up_method': 'nearest'},
+    'unet2': {'out_channels': 2,
+              'down': [(64, 2), (128, 2), (256, 2), (512, 2)],
+              'base': [(512, 2)],
+              'up'  : [(256, 2), (128, 2), (64, 2), (64, 2)],
+              'up_method': 'nearest'},
+    'concat': 'input'
+}

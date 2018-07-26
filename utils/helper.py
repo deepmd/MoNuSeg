@@ -34,12 +34,12 @@ def rgb2label(img):
     return labels
 
 
-def get_centroids_vectors_areas(labels, centroid_size=3):
+def get_centroids_vectors_areas(labels, centroid_size=3, vectors_3d=False):
     (num_rows, num_cols) = labels.shape[0], labels.shape[1]
     areas = np.zeros((num_rows, num_cols), dtype=np.float)
     centroids = np.zeros((num_rows, num_cols)).astype(np.uint8)
     total_area = num_rows * num_cols
-    vectors = np.zeros((4, num_rows, num_cols))
+    vectors = np.zeros((4, num_rows, num_cols)) if not vectors_3d else np.zeros((6, num_rows, num_cols))
     centroid_range = math.floor((centroid_size-1) / 2)
 
     for index in range(labels.shape[-1]):
@@ -70,6 +70,14 @@ def get_centroids_vectors_areas(labels, centroid_size=3):
         [np.tile(np.linalg.norm(vectors[:2], 2, 0), (2, 1, 1)),
          np.tile(np.linalg.norm(vectors[2:], 2, 0), (2, 1, 1))])
     norms[norms == 0] = 1  # preventing division by zero
-    vectors = vectors / norms
+    vectors[:4] = vectors[:4] / norms
+
+    if vectors_3d:
+        vectors[4] = vectors[3]
+        vectors[3] = vectors[2]
+        vectors[2] = 0
+        background = (areas == 0).astype(np.uint8)
+        (x_nonzeros, y_nonzeros) = np.nonzero(background)
+        vectors[2, x_nonzeros, y_nonzeros] = vectors[5, x_nonzeros, y_nonzeros] = 1
 
     return centroids, vectors, areas

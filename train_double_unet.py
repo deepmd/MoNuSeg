@@ -56,7 +56,8 @@ datasets = {x: MODatasetDouble(INPUT_DIR,
                                patch_size=128,
                                transform=trans[x],
                                erosion=1,
-                               gate_image=True)
+                               gate_image=False,
+                               vectors_3d=True)
            for x in ['train', 'valid']}
 dataloaders = {x: torch.utils.data.DataLoader(datasets[x],
                                               batch_size=4,
@@ -145,7 +146,7 @@ def train_model(model, criterion1, criterion2, optimizer, scheduler=None, save_p
 
 ########################### Config Train ##############################
 
-net = DoubleWiredUNet(DOUBLE_UNET_CONFIG_1).cuda()
+net = DoubleWiredUNet(DOUBLE_UNET_CONFIG_7).cuda()
 
 # for DoubleWiredUNet_GateInput
 # def criterion1(inputs, outputs, vectors, masks, areas):
@@ -160,7 +161,7 @@ net = DoubleWiredUNet(DOUBLE_UNET_CONFIG_1).cuda()
 
 def criterion1(inputs, outputs, vectors, masks, areas):
     return criterion_AngularError(outputs, vectors, areas)
-    # return criterion_MSELoss(logits, labels)
+    # return criterion_MSELoss(outputs, vectors)
 
 def criterion2(inputs, outputs, vectors, masks, areas):
     return criterion_BCE_SoftDice(outputs, masks, dice_w=[0.3, 0.7], use_weight=False)
@@ -175,7 +176,7 @@ save_path = os.path.join(WEIGHTS_DIR, 'test/dwunet1_{:d}_{:.0e}_{:.4f}.pth')
 optimizer = optim.SGD(filter(lambda p:  p.requires_grad, net.parameters()), lr=0.001,
                       momentum=0.9, weight_decay=0.0001)
 exp_lr_scheduler = lr_scheduler.ReduceLROnPlateau(optimizer, patience=10, verbose=True)
-net = train_model(net, criterion1, None, optimizer, exp_lr_scheduler, save_path, num_epochs=10, compare_Loss=True)
+net = train_model(net, criterion1, None, optimizer, exp_lr_scheduler, save_path, num_epochs=10, compare_Loss=True, masking=False)
 
 print('\n---------------- Training second unet ----------------')
 for param in net.unet1.parameters():
@@ -186,7 +187,7 @@ save_path = os.path.join(WEIGHTS_DIR, 'test/dwunet2_{:d}_{:.0e}_{:.4f}.pth')
 optimizer = optim.SGD(filter(lambda p:  p.requires_grad, net.parameters()), lr=0.001,
                       momentum=0.9, weight_decay=0.0001)
 exp_lr_scheduler = lr_scheduler.ReduceLROnPlateau(optimizer, patience=10, verbose=True)
-net = train_model(net, None, criterion2, optimizer, exp_lr_scheduler, save_path, num_epochs=10, compare_Loss=True)
+net = train_model(net, None, criterion2, optimizer, exp_lr_scheduler, save_path, num_epochs=10, compare_Loss=True, masking=False)
 
 print('\n---------------- Fine-tuning entire net ----------------')
 for param in net.unet1.parameters():
@@ -195,4 +196,4 @@ save_path = os.path.join(WEIGHTS_DIR, 'test/dwunet3_{:d}_{:.0e}_{:.4f}.pth')
 optimizer = optim.SGD(filter(lambda p:  p.requires_grad, net.parameters()), lr=0.001,
                       momentum=0.9, weight_decay=0.0001)
 exp_lr_scheduler = lr_scheduler.ReduceLROnPlateau(optimizer, patience=10, verbose=True)
-net = train_model(net, criterion1, criterion2, optimizer, exp_lr_scheduler, save_path, num_epochs=20, compare_Loss=True)
+net = train_model(net, criterion1, criterion2, optimizer, exp_lr_scheduler, save_path, num_epochs=20, compare_Loss=True, masking=False)

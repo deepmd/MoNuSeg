@@ -10,12 +10,13 @@ class MODatasetDouble(Dataset):
     """Multi Organ Dataset for Double UNet"""
 
     def __init__(self, root_dir, ids, num_patches=None, patch_size=None, transform=None, erosion=None,
-                 gate_image=True, bgr=False):
+                 gate_image=True, vectors_3d=False, bgr=False):
         self.root_dir = root_dir
         self.ids = ids
         self.transform = transform
         self.erosion = erosion
         self.gate_image = gate_image
+        self.vectors_3d = vectors_3d
         self.patch_coords = None
         if num_patches is not None and patch_size is not None:
             self.ids = np.random.permutation(np.repeat(ids, num_patches))
@@ -77,7 +78,7 @@ class MODatasetDouble(Dataset):
         if self.transform is not None:
             img, mask, labels = self.transform(img, mask.astype(np.float), labels)
 
-        centroids, vectors, areas = helper.get_centroids_vectors_areas(labels, centroid_size=3)
+        centroids, vectors, areas = helper.get_centroids_vectors_areas(labels, centroid_size=3, vectors_3d=self.vectors_3d)
         masks = np.stack([mask, centroids], axis=0)
         sample = {'image': img, 'masks': masks, 'vectors': vectors, 'areas': areas}
 
