@@ -73,7 +73,7 @@ def dice_value(input, target, dice_w=None):
     dice = 0
     w = [1 / C] * C if dice_w is None else dice_w
     for d in range(C):
-        dice += w[d] * soft_dice_1d(probs[:, d], target[:, d], None if weight is None else weight[:, d])
+        dice += w[d] * soft_dice_1d(probs[:, d], target[:, d])
     return dice
 
 
