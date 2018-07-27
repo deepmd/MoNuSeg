@@ -17,6 +17,7 @@ class DoubleUNet(nn.Module):
         self.unet1 = UNet(config1)
         self.unet2 = UNet(config2)
         self.l2_norm = normalize()
+        self.bn = nn.BatchNorm2d(config['unet2']['in_channels'])
 
     def forward(self, x):
         if self.concat == 'input-discard_out1':
