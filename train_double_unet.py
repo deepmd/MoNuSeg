@@ -6,7 +6,7 @@ from utils import init
 from utils.mo_dataset_double import MODatasetDouble
 from utils.metrics import criterion_BCE_SoftDice, criterion_AngularError, criterion_MSELoss, dice_value, MetricMonitor
 from utils import augmentation
-from models.unet import DoubleUNet, DoubleWiredUNet, DoubleWiredUNet_GateInput, DoubleWiredUNet_Mask
+from models.unet import DoubleUNet, DoubleWiredUNet, DoubleWiredUNet_GateInput, DoubleWiredUNet_Mask, DoubleWiredUNet_3d
 
 init.set_results_reproducible()
 init.init_torch()
@@ -146,7 +146,7 @@ def train_model(model, criterion1, criterion2, optimizer, scheduler=None, save_p
 
 ########################### Config Train ##############################
 
-net = DoubleWiredUNet(DOUBLE_UNET_CONFIG_7).cuda()
+net = DoubleWiredUNet_3d(DOUBLE_UNET_CONFIG_7).cuda()
 
 # for DoubleWiredUNet_GateInput
 # def criterion1(inputs, outputs, vectors, masks, areas):
@@ -159,9 +159,13 @@ net = DoubleWiredUNet(DOUBLE_UNET_CONFIG_7).cuda()
 #     return criterion_AngularError(outputs[:, :4], vectors, areas) + \
 #            criterion_BCE_SoftDice(torch.unsqueeze(outputs[:, 4], 1), torch.unsqueeze(masks[:, 0], 1), use_weight=False)
 
+# for DoubleWiredUNet_3d
 def criterion1(inputs, outputs, vectors, masks, areas):
-    return criterion_AngularError(outputs, vectors, areas)
-    # return criterion_MSELoss(outputs, vectors)
+    return criterion_AngularError(outputs, vectors, areas, weight_min=1)
+
+# def criterion1(inputs, outputs, vectors, masks, areas):
+#     return criterion_AngularError(outputs, vectors, areas)
+#     # return criterion_MSELoss(outputs, vectors)
 
 def criterion2(inputs, outputs, vectors, masks, areas):
     return criterion_BCE_SoftDice(outputs, masks, dice_w=[0.3, 0.7], use_weight=False)
@@ -176,7 +180,7 @@ save_path = os.path.join(WEIGHTS_DIR, 'test/dwunet1_{:d}_{:.0e}_{:.4f}.pth')
 optimizer = optim.SGD(filter(lambda p:  p.requires_grad, net.parameters()), lr=0.001,
                       momentum=0.9, weight_decay=0.0001)
 exp_lr_scheduler = lr_scheduler.ReduceLROnPlateau(optimizer, patience=10, verbose=True)
-net = train_model(net, criterion1, None, optimizer, exp_lr_scheduler, save_path, num_epochs=10, compare_Loss=True, masking=False)
+net = train_model(net, criterion1, None, optimizer, exp_lr_scheduler, save_path, num_epochs=30, compare_Loss=True, masking=False)
 
 print('\n---------------- Training second unet ----------------')
 for param in net.unet1.parameters():

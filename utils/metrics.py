@@ -5,11 +5,12 @@ def criterion_MSELoss(input, target):
     return F.mse_loss(input, target)
 
 
-def criterion_AngularError(input, target, area, vectors_count=2):
+def criterion_AngularError(input, target, area, vectors_count=2, weight_min=0):
     C = target.shape[1]
     vectors_dims = C // vectors_count
     eps = 10 ** -6
     weight = torch.gt(area, 0).float() / torch.sqrt(area + eps)
+    weight += weight_min
     # weight = weight / (weights.max()+eps)
     loss = 0
     for i in range(0, C, vectors_dims):

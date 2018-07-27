@@ -24,12 +24,14 @@ class DoubleUNet(nn.Module):
         elif self.concat == 'input':
             output1 = self.l2_norm(self.unet1(x))
             x = torch.cat([x, output1], dim=1)
+            x = self.bn(x)
         elif self.concat == 'penultimate':
             penultimate, output1 = self.unet1(x)
             output1 = self.l2_norm(output1)
             x = torch.cat([penultimate, output1], dim=1)
+            x = self.bn(x)
         else:
             x = output1 = self.l2_norm(self.unet1(x))
-        x = self.bn(x)
+
         output2 = self.unet2(x)
         return output1, output2

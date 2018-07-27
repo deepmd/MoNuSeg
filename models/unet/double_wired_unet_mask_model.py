@@ -41,12 +41,12 @@ class DoubleWiredUNet_Mask(DoubleUNet):
             x = inp*mask_in
         elif self.concat == 'input':
             x = torch.cat([inp*mask_in, output1[:, :-1]*mask_out], dim=1)
+            x = self.bn(x)
         elif self.concat == 'penultimate':
             x = torch.cat([x, output1[:, :-1]*mask_out], dim=1)
+            x = self.bn(x)
         else:
             x = output1[:, :-1]*mask_out
-
-        x = self.bn(x)
 
         # UNet2
         for down, d_out1 in zip(self.unet2.downs, unet1_d_outs):
