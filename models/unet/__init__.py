@@ -4,3 +4,5 @@ from .double_wired_unet_model import DoubleWiredUNet
 from .double_wired_unet_gateinput_model import DoubleWiredUNet_GateInput
 from .double_wired_unet_mask_model import DoubleWiredUNet_Mask
 from .double_wired_unet_3d_model import DoubleWiredUNet_3d
+from .triple_unet_model import TripleUNet
+from .triple_wired_unet_model import TripleWiredUNet

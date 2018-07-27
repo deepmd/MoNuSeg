@@ -4,7 +4,7 @@ from utils import init
 from utils.metrics import aggregated_jaccard, dice_index
 from utils import helper
 from utils.prediction import predict
-from models.unet import DoubleUNet, DoubleWiredUNet, DoubleWiredUNet_3d
+from models.unet import DoubleUNet, DoubleWiredUNet, DoubleWiredUNet_3d, TripleUNet, TripleWiredUNet
 from skimage import segmentation as skseg
 import scipy.io as sio
 
@@ -47,10 +47,10 @@ def do_prediction(net, output_path, test_ids, patch_size, stride, dilation, gate
 
     def model(img, mask=None):
         if masking:
-            _, pred = net(img, mask)
+            outputs = net(img, mask)
         else:
-            _, pred = net(img)
-        return pred
+            outputs = net(img)
+        return outputs[-1]
 
     sum_agg_jac = 0
     sum_dice = 0
@@ -106,11 +106,11 @@ def do_prediction(net, output_path, test_ids, patch_size, stride, dilation, gate
 
 
 ########################### Config Predict ##############################
-net = DoubleWiredUNet_3d(DOUBLE_UNET_3d_CONFIG_1).cuda()
+net = TripleWiredUNet(TRIPLE_UNET_CONFIG_1).cuda()
 
-weight_path = os.path.join(WEIGHTS_DIR, 'test/dwunet3_20_1e-04_2.2034.pth')
+weight_path = os.path.join(WEIGHTS_DIR, 'test/tunet_all_19_1e-04_2.1098.pth')
 net.load_state_dict(torch.load(weight_path))
-output_path = os.path.join(OUTPUT_DIR, 'DWUNET11')
+output_path = os.path.join(OUTPUT_DIR, 'TUNET2')
 
 do_prediction(net, output_path, TEST_IDS, patch_size=128, stride=32, dilation=1,
               gate_image=False, masking=False, post_processing=post_processing_watershed)

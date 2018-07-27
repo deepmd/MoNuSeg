@@ -170,3 +170,22 @@ DOUBLE_UNET_3D_CONFIG_4 = {
               'up_method': 'nearest'},
     'concat': 'penultimate'
 }
+
+TRIPLE_UNET_CONFIG_1 = {
+    'unet1': {'in_channels': 3, 'out_channels': 1,
+              'down': [(64, 2), (96, 2), (128, 2), (192, 2), (256, 2), (384, 2)],
+              'base': [(512, 2)],
+              'up'  : [(256, 2), (192, 2), (128, 2), (96, 2), (64, 2), (64, 2)],
+              'up_method': 'nearest'},
+    'unet2': {'out_channels': 4,
+              'down': [(64, 2), (128, 2), (256, 2), (512, 2)],
+              'base': [(512, 2)],
+              'up'  : [(256, 2), (128, 2), (64, 2), (64, 2)],
+              'up_method': 'nearest'},
+    'unet3': {'out_channels': 2,
+              'down': [(64, 2), (128, 2), (256, 2), (512, 2)],
+              'base': [(512, 2)],
+              'up'  : [(256, 2), (128, 2), (64, 2), (64, 2)],
+              'up_method': 'nearest'},
+    'concat': 'input'
+}
