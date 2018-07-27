@@ -2,9 +2,9 @@ from .unet_parts import *
 from ..unet import UNet
 
 
-class UNet2(UNet):
+class WiredUNet(UNet):
     def __init__(self, config2, config1):
-        super(UNet2, self).__init__(config2)
+        super(WiredUNet, self).__init__(config2)
 
         downs = []
         add_se = config2.get('add_se', False)

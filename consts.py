@@ -113,7 +113,7 @@ DOUBLE_UNET_CONFIG_6 = {
     'concat': 'input-discard_out1'
 }
 
-DOUBLE_UNET_3d_CONFIG_1 = {
+DOUBLE_UNET_3D_CONFIG_1 = {
     'unet1': {'in_channels': 3, 'out_channels': 6,
               'down': [(64, 2), (128, 2), (256, 2), (512, 2)],
               'base': [(512, 2)],
@@ -128,7 +128,7 @@ DOUBLE_UNET_3d_CONFIG_1 = {
     'masking': ['input', 'vector']
 }
 
-DOUBLE_UNET_3d_CONFIG_2 = {
+DOUBLE_UNET_3D_CONFIG_2 = {
     'unet1': {'in_channels': 3, 'out_channels': 6,
               'down': [(64, 2), (128, 2), (256, 2), (512, 2)],
               'base': [(512, 2)],
@@ -143,7 +143,21 @@ DOUBLE_UNET_3d_CONFIG_2 = {
     'masking': ['input']
 }
 
-DOUBLE_UNET_3d_CONFIG_3 = {
+DOUBLE_UNET_3D_CONFIG_3 = {
+    'unet1': {'in_channels': 3, 'out_channels': 6,
+              'down': [(64, 2), (128, 2), (256, 2), (512, 2)],
+              'base': [(512, 2)],
+              'up'  : [(256, 2), (128, 2), (64, 2), (64, 2)],
+              'up_method': 'nearest'},
+    'unet2': {'out_channels': 2,
+              'down': [(64, 2), (128, 2), (256, 2), (512, 2)],
+              'base': [(512, 2)],
+              'up'  : [(256, 2), (128, 2), (64, 2), (64, 2)],
+              'up_method': 'nearest'},
+    'concat': 'input'
+}
+
+DOUBLE_UNET_3D_CONFIG_4 = {
     'unet1': {'in_channels': 3, 'out_channels': 6,
               'down': [(64, 2), (128, 2), (256, 2), (512, 2)],
               'base': [(512, 2)],

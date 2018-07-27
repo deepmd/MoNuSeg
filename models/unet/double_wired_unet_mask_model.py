@@ -1,6 +1,6 @@
 from .unet_parts import *
 from .double_unet_model import DoubleUNet
-from .unet_model2 import UNet2
+from .wired_unet_model import WiredUNet
 
 
 class DoubleWiredUNet_Mask(DoubleUNet):
@@ -10,7 +10,7 @@ class DoubleWiredUNet_Mask(DoubleUNet):
         if len(config['unet1']['down']) != len(config['unet2']['down']):
             raise ValueError('Length of \'down\' of both UNets should be the same.')
         config['unet2']['in_channels'] -= 1
-        self.unet2 = UNet2(config['unet2'], config['unet1'])
+        self.unet2 = WiredUNet(config['unet2'], config['unet1'])
         self.l2_norm = normalize()
         self.bn = nn.BatchNorm2d(config['unet2']['in_channels'])
 
