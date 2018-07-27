@@ -146,7 +146,7 @@ def train_model(model, criterion1, criterion2, optimizer, scheduler=None, save_p
 
 ########################### Config Train ##############################
 
-net = DoubleWiredUNet_3d(DOUBLE_UNET_CONFIG_7).cuda()
+net = DoubleWiredUNet_3d(DOUBLE_UNET_3d_CONFIG_1).cuda()
 
 # for DoubleWiredUNet_GateInput
 # def criterion1(inputs, outputs, vectors, masks, areas):
