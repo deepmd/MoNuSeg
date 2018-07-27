@@ -21,20 +21,19 @@ def train_transforms(image, masks):
     seq_det = seq.to_deterministic()  # call this for each batch again, NOT only once at the start
     image_aug = seq_det.augment_images([image])[0]
     masks_aug = seq_det.augment_images([masks], hooks=hooks_masks)[0]
+    masks_aug = (masks_aug >= MASK_THRESHOLD).astype(np.uint8)
 
     image_aug_tensor = transforms.ToTensor()(image_aug.copy())
     image_aug_tensor = transforms.Normalize([0.8275685641750257, 0.5215321518722066, 0.646311050624383],
                                             [0.16204139441725898, 0.248547854527502, 0.2014914668413328])(image_aug_tensor)
-
-    masks_aug = (masks_aug >= MASK_THRESHOLD).astype(np.uint8)
 
     return image_aug_tensor, masks_aug
 
 
 def valid_transforms(image, masks):
     img_tensor = transforms.ToTensor()(image.copy())
-    # img_tensor = transforms.Normalize([0.03072981, 0.03072981, 0.01682784],
-    #                              [0.17293351, 0.12542403, 0.0771413 ])(img_tensor)
+    img_tensor = transforms.Normalize([0.8275685641750257, 0.5215321518722066, 0.646311050624383],
+                                      [0.16204139441725898, 0.248547854527502, 0.2014914668413328])(img_tensor)
 
     return img_tensor, masks
 
@@ -47,7 +46,7 @@ ids = {'train': ids_train, 'valid': ids_valid}
 datasets = {x: MODataset(INPUT_DIR,
                          ids[x],
                          num_patches=100,
-                         patch_size=256,
+                         patch_size=128,
                          transform=trans[x])
            for x in ['train', 'valid']}
 dataloaders = {x: torch.utils.data.DataLoader(datasets[x],
@@ -82,9 +81,6 @@ def train_model(model, criterion, optimizer, scheduler = None, save_path = None,
                 inputs = torch.tensor(samples['image'], requires_grad=True).cuda(async=True)
                 # get the targets
                 targets = torch.tensor(samples['masks'], dtype=torch.float).cuda(async=True)
-
-                # zero the parameter gradients
-                optimizer.zero_grad()
 
                 # forward
                 outputs = model(inputs)
@@ -141,14 +137,14 @@ net = Res_UNet(layers=34, out_channels=3).cuda()
 def criterion(logits, labels):
     return criterion_BCE_SoftDice(logits, labels, dice_w=[0.5, 0.5, 0], use_weight=False)
 
-for param in net.resnet.parameters():
-    param.requires_grad = False
+# for param in net.resnet.parameters():
+#     param.requires_grad = False
 
 optimizer = optim.SGD(filter(lambda p:  p.requires_grad, net.parameters()), lr=0.001,
                       momentum=0.9, weight_decay=0.0001)
 #exp_lr_scheduler = lr_scheduler.StepLR(optimizer, step_size=50, gamma=0.1)
 exp_lr_scheduler = lr_scheduler.ReduceLROnPlateau(optimizer, patience=10, verbose=True)
 
-save_path = os.path.join(WEIGHTS_DIR, 'res-unet-{:.4f}.pth')
+save_path = os.path.join(WEIGHTS_DIR, 'test/res-unet-{:.4f}.pth')
 net = train_model(net, criterion, optimizer, exp_lr_scheduler, save_path, num_epochs=40)
 
