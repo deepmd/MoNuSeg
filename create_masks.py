@@ -4,6 +4,7 @@ from skimage import color, io, segmentation
 from common import *
 from consts import *
 from utils import helper
+import skimage.morphology as skmorph
 
 
 def fill_inside(polygon, mask, label_val):
@@ -65,31 +66,32 @@ def create_masks():
         mask = (relabeled_mask > 0).astype(np.uint8)
 
         boundary_mask = segmentation.find_boundaries(relabeled_mask, mode='inner').astype(np.uint8)
+        boundary_mask = skmorph.binary_dilation(boundary_mask, skmorph.square(5))
 
         inside_mask = np.multiply(mask, (1 - boundary_mask))
-
-        colored_labels = color.label2rgb(relabeled_mask,
-                                         colors=helper.get_spaced_colors(np.max(relabeled_mask)),
-                                         bg_label=0).astype(np.uint8)
-
-        boundary_colored_labels = segmentation.mark_boundaries(colored_labels,
-                                                               relabeled_mask,
-                                                               color=(1, 1, 1),
-                                                               mode='inner')
-
-        masks_path = os.path.join(INPUT_DIR, MASKS_DIR, image_id+'.png')
-        labels_path = os.path.join(INPUT_DIR, LABELS_DIR, image_id+'.npy')
-        inside_mask_path = os.path.join(INPUT_DIR, INSIDE_MASKS_DIR, image_id+'.png')
-        boundary_mask_path = os.path.join(INPUT_DIR, BOUNDARY_MASKS_DIR, image_id+'.png')
-        colored_labeled_mask_path = os.path.join(INPUT_DIR, COLORED_LABELS_DIR, image_id+'.png')
-        boundary_colored_labeled_mask_path = os.path.join(INPUT_DIR, BOUNDARY_COLORED_LABELS_DIR, image_id+'.png')
-
-        io.imsave(masks_path, mask * 255)
-        np.save(labels_path, relabeled_mask)
+        #
+        # colored_labels = color.label2rgb(relabeled_mask,
+        #                                  colors=helper.get_spaced_colors(np.max(relabeled_mask)),
+        #                                  bg_label=0).astype(np.uint8)
+        #
+        # boundary_colored_labels = segmentation.mark_boundaries(colored_labels,
+        #                                                        relabeled_mask,
+        #                                                        color=(1, 1, 1),
+        #                                                        mode='inner')
+        #
+        # masks_path = os.path.join(INPUT_DIR, MASKS_DIR, image_id+'.png')
+        # labels_path = os.path.join(INPUT_DIR, LABELS_DIR, image_id+'.npy')
+        inside_mask_path = os.path.join(INPUT_DIR, INSIDE_MASKS_DIR, 'thickness_3', image_id+'.png')
+        boundary_mask_path = os.path.join(INPUT_DIR, BOUNDARY_MASKS_DIR, 'thickness_3',  image_id+'.png')
+        # colored_labeled_mask_path = os.path.join(INPUT_DIR, COLORED_LABELS_DIR, image_id+'.png')
+        # boundary_colored_labeled_mask_path = os.path.join(INPUT_DIR, BOUNDARY_COLORED_LABELS_DIR, image_id+'.png')
+        #
+        # io.imsave(masks_path, mask * 255)
+        # np.save(labels_path, relabeled_mask)
         io.imsave(inside_mask_path, inside_mask * 255)
         io.imsave(boundary_mask_path, boundary_mask * 255)
-        io.imsave(colored_labeled_mask_path, colored_labels)
-        io.imsave(boundary_colored_labeled_mask_path, boundary_colored_labels)
+        # io.imsave(colored_labeled_mask_path, colored_labels)
+        # io.imsave(boundary_colored_labeled_mask_path, boundary_colored_labels)
 
 
 # main #################################################################

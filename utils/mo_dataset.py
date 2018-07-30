@@ -1,6 +1,6 @@
 from common import *
 from consts import *
-from utils import augmentation
+from utils import augmentation, helper
 
 class MODataset(Dataset):
     """Multi Organ Dataset"""
@@ -39,6 +39,7 @@ class MODataset(Dataset):
             boundary_mask_path = os.path.join(self.root_dir, BOUNDARY_MASKS_DIR, img_id+'.png')
             boundary_mask = cv2.imread(boundary_mask_path, cv2.IMREAD_GRAYSCALE) / 255
             self.boundary_masks[img_id] = boundary_mask
+        self.bgr = bgr
 
     def __len__(self):
         return len(self.ids)
@@ -47,6 +48,14 @@ class MODataset(Dataset):
         img = self.images[self.ids[idx]]
         inside_mask = self.inside_masks[self.ids[idx]]
         boundary_mask = self.boundary_masks[self.ids[idx]]
+        # img_id = self.ids[idx]
+        # img_path = os.path.join(self.root_dir, IMAGES_DIR, img_id + '.tif')
+        # img = cv2.imread(img_path)
+        # img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB) if not self.bgr else img
+        # inside_mask_path = os.path.join(self.root_dir, INSIDE_MASKS_DIR, img_id + '.png')
+        # inside_mask = cv2.imread(inside_mask_path, cv2.IMREAD_GRAYSCALE) / 255
+        # boundary_mask_path = os.path.join(self.root_dir, BOUNDARY_MASKS_DIR, img_id + '.png')
+        # boundary_mask = cv2.imread(boundary_mask_path, cv2.IMREAD_GRAYSCALE) / 255
 
         if self.patch_coords is not None:
             y1, x1, y2, x2 = self.patch_coords[idx]
@@ -58,9 +67,12 @@ class MODataset(Dataset):
         if self.transform is not None:
             img, masks = self.transform(img, masks)
 
-        background_mask = 1 - np.any(masks, axis=-1, keepdims=True)
-        masks = np.append(masks, background_mask, axis=-1)
-        masks = np.moveaxis(masks, -1, 0)
+        # background_mask = 1 - np.any(masks, axis=-1, keepdims=True)
+        # masks = np.append(masks, background_mask, axis=-1)
+
+        masks = masks[:, :, 0] + 2*masks[:, :, 1]
+        masks = np.expand_dims(masks, axis=0)
+
         sample = {'image': img, 'masks': masks}
         return sample
 
@@ -101,9 +113,11 @@ def run_check_dataset(transform=None):
         bn_cmap[:, -1] = np.linspace(0, 1, 2)
         bn_cmap = colors.ListedColormap(bn_cmap)
         plt.rcParams['axes.facecolor'] = 'black'
-        plt.imshow(img)
-        plt.imshow(sample['masks'][0], cmap=in_cmap, alpha=0.5)
-        plt.imshow(sample['masks'][1], cmap=bn_cmap, alpha=0.5)
+        plt.imshow(np.squeeze(sample['masks']))
+        # plt.imshow(img)
+        # plt.imshow(np.squeeze(sample['masks']), cmap=in_cmap, alpha=0.5)
+        # plt.imshow(sample['masks'][0], cmap=in_cmap, alpha=0.5)
+        # plt.imshow(sample['masks'][1], cmap=bn_cmap, alpha=0.5)
         plt.show()
         cv2.waitKey(0)
 

@@ -11,6 +11,7 @@ BOUNDARY_MASKS_DIR = 'Masks/Boundary'
 LABELS_DIR = 'Labels'
 COLORED_LABELS_DIR = 'Labels/Colored'
 BOUNDARY_COLORED_LABELS_DIR = 'Labels/Boundary_Colored'
+TOUCHING_BORDERS_DIR = 'Masks/Touching_Borders'
 
 TEST_IDS = ['TCGA-18-5592-01Z-00-DX1', 'TCGA-38-6178-01Z-00-DX1', 'TCGA-A7-A13E-01Z-00-DX1', 'TCGA-A7-A13F-01Z-00-DX1',
             'TCGA-B0-5711-01Z-00-DX1', 'TCGA-G9-6336-01Z-00-DX1', 'TCGA-G9-6348-01Z-00-DX1', 'TCGA-HE-7128-01Z-00-DX1']
@@ -21,12 +22,22 @@ DEACTIVATED_MASK_AUG_LIST = ['Superpixels', 'GaussianBlur', 'AverageBlur', 'Medi
                              'CoarseDropout', 'Invert', 'Add_Value_to_each_Pixel', 'Change_Brightness',
                              'ContrastNormalization', 'Grayscale']
 
+# BETA_IN_DISTANCE_WEIGHT = 20
+
+# ------------------ SINGLE UNET CONFIG ----------------------------
 UNET_CONFIG = {'in_channels': 3, 'out_channels': 3,
                'down': [(64, 2), (128, 2), (256, 2), (512, 2)],
                'base': [(512, 2)],
                'up'  : [(256, 2), (128, 2), (64, 2), (64, 2)],
                'up_method': 'nearest'}
 
+UNET_CONFIG_1 = {'in_channels': 3, 'out_channels': 1,
+                 'down': [(64, 2), (128, 2), (256, 2), (512, 2)],
+                 'base': [(512, 2)],
+                 'up'  : [(256, 2), (128, 2), (64, 2), (64, 2)],
+                 'up_method': 'bilinear'}
+
+# ------------------ DOUBLE UNET CONFIG ----------------------------
 DOUBLE_UNET_CONFIG_1 = {
     'unet1': {'in_channels': 3, 'out_channels': 4,
               'down': [(64, 2), (128, 2), (256, 2), (512, 2)],

@@ -1,4 +1,5 @@
 from common import *
+from utils import helper
 
 
 def criterion_MSELoss(input, target):
@@ -45,6 +46,60 @@ def criterion_BCE_SoftDice(input, target, dice_w=None, use_weight=False):
     loss = F.binary_cross_entropy_with_logits(input, target, weight) + \
            dice_loss_with_logits(input, target, weight, dice_w)
 
+    return loss
+
+
+def criterion_CCE_SoftDice(logits, labels, dice_w=None, use_weight=False):
+    # compute weights
+    # if use_weight:
+    #     if H <= 128:
+    #         kernel_size = 11
+    #     elif H <= 256:
+    #         kernel_size = 21
+    #     elif H <= 512:
+    #         kernel_size = 21
+    #     else:
+    #         kernel_size = 41
+    #     a = F.avg_pool2d(labels[:, 0], kernel_size=kernel_size, padding=kernel_size // 2, stride=1)
+    #     border = (a.ge(0.01) * a.le(0.99)).float()
+    #     weights = torch.ones(a.shape).cuda(async=True)
+    #     w0 = weights.sum()
+    #     weights = weights + border*2
+    #     w1 = weights.sum()
+    #     weights = weights * (w0 / w1)
+    #     weights = weights.repeat((C, 1, 1)).reshape(labels.shape)
+    # else:
+    #     weights = torch.ones(labels.shape).cuda(async=True)
+
+    loss = nn.CrossEntropyLoss()(logits, torch.squeeze(labels))
+
+    labels = helper.make_one_hot(labels, C=logits.shape[1])
+    batch_size, C, H, W = labels.shape
+    weights = torch.ones(labels.shape).cuda(async=True)
+    for d in range(C):
+        w = 1/C if dice_w is None else dice_w[d]
+        loss = loss + w * WeightedSoftDiceLoss()(logits[:, d], labels[:, d], weights[:, d])
+
+    return loss
+
+
+class WeightedSoftDiceLoss(nn.Module):
+    def __init__(self):
+        super(WeightedSoftDiceLoss, self).__init__()
+
+    def forward(self, logits, labels, weights):
+        probs = F.sigmoid(logits)
+        num   = labels.shape[0]
+        w     = weights.view(num,-1)
+        w2    = w*w
+        m1    = probs.view(num,-1)
+        m2    = labels.view(num,-1)
+        intersection = (m1 * m2)
+        smooth = 1
+        score = (2. * (w2*intersection).sum(1) + smooth) / ((w2*m1).sum(1) + (w2*m2).sum(1) + smooth)
+                # + (2. * intersection.sum(1) + smooth) / (m1.sum(1) + m2.sum(1) + smooth)
+        loss = 1 - score.sum()/num
+        return loss
     return loss
 
 
