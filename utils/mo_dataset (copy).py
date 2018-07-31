@@ -25,55 +25,45 @@ class MODataset(Dataset):
                 self.patch_coords[:, 2] = self.patch_coords[:, 0] + patch_size
                 self.patch_coords[:, 3] = self.patch_coords[:, 1] + patch_size
                 np.savetxt(patch_info_path, self.patch_coords, delimiter=',', fmt='%d')
-        self.images = {}
-        self.inside_masks = {}
-        self.boundary_masks = {}
-        for img_id in ids:
-            img_path = os.path.join(self.root_dir, IMAGES_DIR, img_id+'.tif')
-            img = cv2.imread(img_path)
-            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB) if not bgr else img
-            self.images[img_id] = img
-            inside_mask_path = os.path.join(self.root_dir, INSIDE_MASKS_DIR, img_id+'.png')
-            inside_mask = cv2.imread(inside_mask_path, cv2.IMREAD_GRAYSCALE) / 255
-            self.inside_masks[img_id] = inside_mask
-            boundary_mask_path = os.path.join(self.root_dir, BOUNDARY_MASKS_DIR, img_id+'.png')
-            boundary_mask = cv2.imread(boundary_mask_path, cv2.IMREAD_GRAYSCALE) / 255
-            self.boundary_masks[img_id] = boundary_mask
         self.bgr = bgr
+        # self.images = {}
+        # self.masks = {}
+        # for img_id in ids:
+        #     img_path = os.path.join(self.root_dir, IMAGES_DIR, img_id + '.tif')
+        #     img = cv2.imread(img_path)
+        #     img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB) if not bgr else img
+        #     self.images[img_id] = img
+        #     mask_path = os.path.join(self.root_dir, MASKS_DIR, img_id + '.png')
+        #     mask = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE) / 255
+        #     self.masks[img_id] = mask
 
     def __len__(self):
         return len(self.ids)
 
     def __getitem__(self, idx):
-        img = self.images[self.ids[idx]]
-        inside_mask = self.inside_masks[self.ids[idx]]
-        boundary_mask = self.boundary_masks[self.ids[idx]]
-        # img_id = self.ids[idx]
-        # img_path = os.path.join(self.root_dir, IMAGES_DIR, img_id + '.tif')
-        # img = cv2.imread(img_path)
-        # img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB) if not self.bgr else img
-        # inside_mask_path = os.path.join(self.root_dir, INSIDE_MASKS_DIR, img_id + '.png')
-        # inside_mask = cv2.imread(inside_mask_path, cv2.IMREAD_GRAYSCALE) / 255
-        # boundary_mask_path = os.path.join(self.root_dir, BOUNDARY_MASKS_DIR, img_id + '.png')
-        # boundary_mask = cv2.imread(boundary_mask_path, cv2.IMREAD_GRAYSCALE) / 255
+        # img = self.images[self.ids[idx]]
+        # mask = self.masks[self.ids[idx]]
+        img_path = os.path.join(self.root_dir, IMAGES_DIR, self.ids[idx] + '.tif')
+        img = cv2.imread(img_path)
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB) if not self.bgr else img
+        mask_path = os.path.join(self.root_dir, MASKS_DIR, self.ids[idx] + '.png')
+        mask = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE) / 255
 
         if self.patch_coords is not None:
             y1, x1, y2, x2 = self.patch_coords[idx]
-            img             = img[y1:y2, x1:x2, :]
-            inside_mask     = inside_mask[y1:y2, x1:x2]
-            boundary_mask   = boundary_mask[y1:y2, x1:x2]
+            img = img[y1:y2, x1:x2, :]
+            mask = mask[y1:y2, x1:x2]
 
-        masks = np.stack([inside_mask, boundary_mask], axis=-1)
+        mask = np.expand_dims(mask, axis=-1)
         if self.transform is not None:
-            img, masks = self.transform(img, masks)
+            img, mask = self.transform(img, mask)
 
-        # background_mask = 1 - np.any(masks, axis=-1, keepdims=True)
-        # masks = np.append(masks, background_mask, axis=-1)
+        mask = np.moveaxis(mask, -1, 0)
+        # DWM = helper.get_distance_transform_based_weight_map(mask, beta=BETA_IN_DISTANCE_WEIGHT)
+        # sample = {'image': img, 'masks': mask, 'weights': DWM}
 
-        masks = masks[:, :, 0] + 2*masks[:, :, 1]
-        masks = np.expand_dims(masks, axis=0)
+        sample = {'image': img, 'masks': mask}
 
-        sample = {'image': img, 'masks': masks}
         return sample
 
 
@@ -111,11 +101,11 @@ def run_check_dataset(transform=None):
         bn_cmap = colors.ListedColormap(['black', '#FF0000'])
         bn_cmap = bn_cmap(np.arange(2))
         bn_cmap[:, -1] = np.linspace(0, 1, 2)
-        bn_cmap = colors.ListedColormap(bn_cmap)
+        # bn_cmap = colors.ListedColormap(bn_cmap)
         plt.rcParams['axes.facecolor'] = 'black'
-        plt.imshow(np.squeeze(sample['masks']))
-        # plt.imshow(img)
-        # plt.imshow(np.squeeze(sample['masks']), cmap=in_cmap, alpha=0.5)
+        # plt.imshow(np.squeeze(sample['weights']))
+        plt.imshow(img)
+        plt.imshow(np.squeeze(sample['masks']), cmap=in_cmap, alpha=0.5)
         # plt.imshow(sample['masks'][0], cmap=in_cmap, alpha=0.5)
         # plt.imshow(sample['masks'][1], cmap=bn_cmap, alpha=0.5)
         plt.show()

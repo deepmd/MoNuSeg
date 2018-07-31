@@ -4,10 +4,9 @@ from common import *
 from consts import *
 from utils import init
 from utils.mo_dataset import MODataset
-from utils.metrics import criterion_CCE_SoftDice, dice_value, MetricMonitor
+from utils.metrics import criterion_BCE_SoftDice, dice_value, MetricMonitor
 from utils import augmentation
-from models.unet import UNet
-from models.res_unet import Res_UNet
+from models.refinenet.refinenet_4cascade import RefineNet4Cascade
 
 init.set_results_reproducible()
 init.init_torch()
@@ -25,8 +24,8 @@ def train_transforms(image, masks):
     masks_aug = seq_det.augment_images([masks], hooks=hooks_masks)[0]
 
     image_aug_tensor = transforms.ToTensor()(image_aug.copy())
-    # image_aug_tensor = transforms.Normalize([0.03072981, 0.03072981, 0.01682784],
-    #                              [0.17293351, 0.12542403, 0.0771413 ])(image_aug_tensor)
+    image_aug_tensor = transforms.Normalize([0.8275685641750257, 0.5215321518722066, 0.646311050624383],
+                                            [0.16204139441725898, 0.248547854527502, 0.2014914668413328])(image_aug_tensor)
 
     masks_aug = (masks_aug >= MASK_THRESHOLD).astype(np.uint8)
 
@@ -35,8 +34,8 @@ def train_transforms(image, masks):
 
 def valid_transforms(image, masks):
     img_tensor = transforms.ToTensor()(image.copy())
-    # img_tensor = transforms.Normalize([0.03072981, 0.03072981, 0.01682784],
-    #                              [0.17293351, 0.12542403, 0.0771413 ])(img_tensor)
+    img_tensor = transforms.Normalize([0.8275685641750257, 0.5215321518722066, 0.646311050624383],
+                                       [0.16204139441725898, 0.248547854527502, 0.2014914668413328])(img_tensor)
 
     return img_tensor, masks
 
@@ -49,11 +48,11 @@ ids = {'train': ids_train, 'valid': ids_valid}
 datasets = {x: MODataset(INPUT_DIR,
                          ids[x],
                          num_patches=200,
-                         patch_size=512,
+                         patch_size=256,
                          transform=trans[x])
            for x in ['train', 'valid']}
 dataloaders = {x: torch.utils.data.DataLoader(datasets[x],
-                                              batch_size=2,
+                                              batch_size=8,
                                               shuffle=True, 
                                               num_workers=8,
                                               pin_memory=True)
@@ -81,14 +80,11 @@ def train_model(model, criterion, optimizer, scheduler=None, save_path=None, num
                 # get the inputs
                 inputs = torch.tensor(samples['image'], requires_grad=True).cuda(async=True)
                 # get the targets
-                targets = torch.tensor(samples['masks'], dtype=torch.long).cuda(async=True)
-                # get the weight map
-                # weights = torch.tensor(samples['weights'], dtype=torch.float).cuda(async=True)
+                targets = torch.tensor(samples['masks'], dtype=torch.float).cuda(async=True)
 
                 # forward
                 outputs = model(inputs)
                 loss = criterion(outputs, targets)
-                # loss = criterion(outputs, targets, weights)
 
                 # backward + optimize only if in training phase
                 if phase == 'train':
@@ -98,7 +94,7 @@ def train_model(model, criterion, optimizer, scheduler=None, save_path=None, num
                         optimizer.zero_grad()
 
                 # statistics
-                dice = dice_value(outputs.data, targets.data, None)
+                dice = dice_value(outputs.data, targets.data, [0.5, 0.5, 0])
                 monitor.update('loss', loss.data, inputs.shape[0])
                 monitor.update('dice', dice.data, inputs.shape[0])
                 stream.set_description(
@@ -135,22 +131,24 @@ def train_model(model, criterion, optimizer, scheduler=None, save_path=None, num
 
 
 ########################### Config Train ##############################
-net = UNet(UNET_CONFIG).cuda()
 
+net = RefineNet4Cascade((3, 128), num_classes=1, pretrained=False, freeze_resnet=False).cuda()
+# layers = [net.layer1_rn, net.layer2_rn, net.layer3_rn, net.layer4_rn, net.refinenet1, net.refinenet2,
+#           net.refinenet3, net.refinenet4, net.output_conv]
+# for layer in layers:
+#     for param in layer.parameters():
+#         param.requires_grad = True
 
-# def criterion(logits, labels, weights):
-#     return criterion_BCE_SoftDice_WEIGHTS(logits, labels, weights, dice_w=None)
 
 def criterion(logits, labels):
-    return criterion_CCE_SoftDice(logits, labels, dice_w=None, use_weight=False)
+    return criterion_BCE_SoftDice(logits, labels, dice_w=[0.5, 0.5, 0], use_weight=False)
 
 
-print('\n---------------- Training unet ----------------')
-optimizer = optim.SGD(filter(lambda p:  p.requires_grad, net.parameters()), lr=5e-3,
+optimizer = optim.SGD(filter(lambda p:  p.requires_grad, net.parameters()), lr=0.001,
                       momentum=0.9, weight_decay=0.0001)
 # exp_lr_scheduler = lr_scheduler.StepLR(optimizer, step_size=50, gamma=0.1)
 exp_lr_scheduler = lr_scheduler.ReduceLROnPlateau(optimizer, patience=10, verbose=True)
 
-save_path = os.path.join(WEIGHTS_DIR, 'UNET3/unet-{:.4f}.pth')
+save_path = os.path.join(WEIGHTS_DIR, 'REFINENET', 'refinenet-{:.4f}.pth')
 net = train_model(net, criterion, optimizer, exp_lr_scheduler, save_path, num_epochs=30)
 

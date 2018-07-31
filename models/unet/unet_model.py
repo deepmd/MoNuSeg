@@ -1,3 +1,7 @@
+from docutils.nodes import sidebar
+from utils import helper
+import torch
+
 from .unet_parts import *
 
 
@@ -26,6 +30,7 @@ class UNet(nn.Module):
         self.bases = nn.ModuleList(self.bases)
         self.ups = nn.ModuleList(self.ups)
         self.penultimate_output = config.get('penultimate_output', False)
+        # self.up = nn.Upsample(size=(800, 800), mode='bilinear', align_corners=True)
 
     def forward(self, x):
         d_outs = []

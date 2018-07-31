@@ -4,12 +4,13 @@ from common import *
 from consts import *
 from utils import init
 from utils.mo_dataset import MODataset
-from utils.metrics import criterion_BCE_SoftDice, dice_value, MetricMonitor
+from utils.metrics import criterion_CCE_SoftDice, dice_value, MetricMonitor
 from utils import augmentation
 from models.res_unet import Res_UNet
 
 init.set_results_reproducible()
 init.init_torch()
+
 
 ############################# Load Data ##################################
 def train_transforms(image, masks):
@@ -45,8 +46,8 @@ ids_train, ids_valid = train_test_split(train_ids, test_size=0.2, random_state=4
 ids = {'train': ids_train, 'valid': ids_valid}
 datasets = {x: MODataset(INPUT_DIR,
                          ids[x],
-                         num_patches=100,
-                         patch_size=128,
+                         num_patches=200,
+                         patch_size=512,
                          transform=trans[x])
            for x in ['train', 'valid']}
 dataloaders = {x: torch.utils.data.DataLoader(datasets[x],
@@ -58,10 +59,8 @@ dataloaders = {x: torch.utils.data.DataLoader(datasets[x],
 dataset_sizes = {x: len(datasets[x]) for x in ['train', 'valid']}
 
 
-
-############################# Training the model ################################## 
-
-def train_model(model, criterion, optimizer, scheduler = None, save_path = None, num_epochs = 25, iter_size = 1):
+############################# Training the model ##################################
+def train_model(model, criterion, optimizer, scheduler=None, save_path=None, num_epochs=25, iter_size=1):
     since = time.time()
     
     best_model_wts = copy.deepcopy(model.state_dict())
@@ -80,7 +79,7 @@ def train_model(model, criterion, optimizer, scheduler = None, save_path = None,
                 # get the inputs
                 inputs = torch.tensor(samples['image'], requires_grad=True).cuda(async=True)
                 # get the targets
-                targets = torch.tensor(samples['masks'], dtype=torch.float).cuda(async=True)
+                targets = torch.tensor(samples['masks'], dtype=torch.long).cuda(async=True)
 
                 # forward
                 outputs = model(inputs)
@@ -94,7 +93,7 @@ def train_model(model, criterion, optimizer, scheduler = None, save_path = None,
                         optimizer.zero_grad()
 
                 # statistics
-                dice = dice_value(outputs.data, targets.data, [0.5, 0.5, 0])
+                dice = dice_value(outputs.data, targets.data, None)
                 monitor.update('loss', loss.data, inputs.shape[0])
                 monitor.update('dice', dice.data, inputs.shape[0])
                 stream.set_description(
@@ -133,18 +132,26 @@ def train_model(model, criterion, optimizer, scheduler = None, save_path = None,
 ########################### Config Train ##############################
 
 net = Res_UNet(layers=34, out_channels=3).cuda()
+# weight_path = os.path.join(WEIGHTS_DIR, 'UNETRESNET/res-unet-0.5953.pth')
+# net.load_state_dict(torch.load(weight_path))
+
+# def criterion(logits, labels):
+#     return criterion_BCE_SoftDice(logits, labels, dice_w=[0.5, 0.5, 0], use_weight=False)
+
 
 def criterion(logits, labels):
-    return criterion_BCE_SoftDice(logits, labels, dice_w=[0.5, 0.5, 0], use_weight=False)
+    return criterion_CCE_SoftDice(logits, labels, dice_w=None, use_weight=False)
 
-# for param in net.resnet.parameters():
-#     param.requires_grad = False
+
+for param in net.resnet.parameters():
+    param.requires_grad = True
 
 optimizer = optim.SGD(filter(lambda p:  p.requires_grad, net.parameters()), lr=0.001,
                       momentum=0.9, weight_decay=0.0001)
-#exp_lr_scheduler = lr_scheduler.StepLR(optimizer, step_size=50, gamma=0.1)
-exp_lr_scheduler = lr_scheduler.ReduceLROnPlateau(optimizer, patience=10, verbose=True)
 
-save_path = os.path.join(WEIGHTS_DIR, 'test/res-unet-{:.4f}.pth')
+# exp_lr_scheduler = lr_scheduler.StepLR(optimizer, step_size=50, gamma=0.1)
+exp_lr_scheduler = lr_scheduler.ReduceLROnPlateau(optimizer, patience=15, verbose=True)
+
+save_path = os.path.join(WEIGHTS_DIR, 'UNETRESNET', 'res-unet-{:.4f}.pth')
 net = train_model(net, criterion, optimizer, exp_lr_scheduler, save_path, num_epochs=40)
 

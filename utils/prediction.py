@@ -25,7 +25,7 @@ def predict(model, test_img, patch_height, patch_width, stride_height, stride_wi
         patches_masks, _, _ = extract_patches.get_data_testing_overlap(
             test_imgs=mask,
             patch_height=patch_height, patch_width=patch_width,
-            stride_height=stride_height, stride_width=stride_width)
+            stride_height=stride_torch.floatheight, stride_width=stride_width)
     else:
         patches_masks, _, _ = extract_patches.get_data_testing(
             test_imgs=mask, patch_height=patch_height, patch_width=patch_width)
@@ -36,15 +36,20 @@ def predict(model, test_img, patch_height, patch_width, stride_height, stride_wi
     out_shape = patches_imgs_test.shape
     pred_patches = None
     for id, (sample, mask) in enumerate(zip(patches_imgs_test, patches_masks)):
-        sample = transforms.ToTensor()(sample)
+        sample = transforms.ToTensor()(sample.astype(np.uint8))
+        sample = transforms.Normalize([0.8275685641750257, 0.5215321518722066, 0.646311050624383],
+                                      [0.16204139441725898, 0.248547854527502, 0.2014914668413328])(sample)
         sample = torch.unsqueeze(sample, 0)
         sample = torch.tensor(sample, dtype=torch.float).cuda()
+
         if mask is None:
             pred = model(sample)
         else:
             mask = torch.tensor(mask, dtype=torch.float).cuda()
             pred = model(sample, mask)
-        pred = F.sigmoid(pred)
+        pred = F.log_softmax(pred, dim=1)
+        pred = (pred.argmax(dim=1, keepdim=True) == 1)
+        # pred = F.sigmoid(pred)
         if pred_patches is None:
             pred_patches = np.zeros((out_shape[0], pred.shape[1], out_shape[1], out_shape[2]), dtype=np.float32)
         pred_patches[id, ...] = pred.data.cpu().numpy()

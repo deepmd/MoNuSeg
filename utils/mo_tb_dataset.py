@@ -2,7 +2,7 @@ from common import *
 from consts import *
 from utils import augmentation, helper
 
-class MODataset(Dataset):
+class MOTBDataset(Dataset):
     """Multi Organ Dataset"""
 
     def __init__(self, root_dir, ids, num_patches=None, patch_size=None, transform=None, bgr=False):
@@ -25,52 +25,67 @@ class MODataset(Dataset):
                 self.patch_coords[:, 2] = self.patch_coords[:, 0] + patch_size
                 self.patch_coords[:, 3] = self.patch_coords[:, 1] + patch_size
                 np.savetxt(patch_info_path, self.patch_coords, delimiter=',', fmt='%d')
-        self.images = {}
-        self.inside_masks = {}
-        self.boundary_masks = {}
-        for img_id in ids:
-            img_path = os.path.join(self.root_dir, IMAGES_DIR, img_id+'.tif')
-            img = cv2.imread(img_path)
-            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB) if not bgr else img
-            self.images[img_id] = img
-            inside_mask_path = os.path.join(self.root_dir, INSIDE_MASKS_DIR, img_id+'.png')
-            inside_mask = cv2.imread(inside_mask_path, cv2.IMREAD_GRAYSCALE) / 255
-            self.inside_masks[img_id] = inside_mask
-            boundary_mask_path = os.path.join(self.root_dir, BOUNDARY_MASKS_DIR, img_id+'.png')
-            boundary_mask = cv2.imread(boundary_mask_path, cv2.IMREAD_GRAYSCALE) / 255
-            self.boundary_masks[img_id] = boundary_mask
+        # self.images = {}
+        # self.inside_masks = {}
+        # self.boundary_masks = {}
+        # self.overlapped_masks = {}
+        # for img_id in ids:
+        #     # read image
+        #     img_path = os.path.join(self.root_dir, IMAGES_DIR, img_id+'.tif')
+        #     img = cv2.imread(img_path)
+        #     img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB) if not bgr else img
+        #     self.images[img_id] = img
+        #     # read inside mask
+        #     inside_mask_path = os.path.join(self.root_dir, INSIDE_MASKS_DIR, img_id+'.png')
+        #     inside_mask = cv2.imread(inside_mask_path, cv2.IMREAD_GRAYSCALE) / 255
+        #     self.inside_masks[img_id] = inside_mask
+        #     # read boundary mask
+        #     # boundary_mask_path = os.path.join(self.root_dir, BOUNDARY_MASKS_DIR, img_id+'.png')
+        #     # boundary_mask = cv2.imread(boundary_mask_path, cv2.IMREAD_GRAYSCALE) / 255
+        #     # self.boundary_masks[img_id] = boundary_mask
+        #     # read overlapped mask
+        #     touching_borders_mask_path = os.path.join(self.root_dir, TOUCHING_BORDERS_DIR, img_id+'.png')
+        #     touching_borders_mask = cv2.imread(touching_borders_mask_path, cv2.IMREAD_GRAYSCALE) / 255
+        #     self.overlapped_masks[img_id] = touching_borders_mask
         self.bgr = bgr
 
     def __len__(self):
         return len(self.ids)
 
     def __getitem__(self, idx):
-        img = self.images[self.ids[idx]]
-        inside_mask = self.inside_masks[self.ids[idx]]
-        boundary_mask = self.boundary_masks[self.ids[idx]]
-        # img_id = self.ids[idx]
-        # img_path = os.path.join(self.root_dir, IMAGES_DIR, img_id + '.tif')
-        # img = cv2.imread(img_path)
-        # img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB) if not self.bgr else img
-        # inside_mask_path = os.path.join(self.root_dir, INSIDE_MASKS_DIR, img_id + '.png')
-        # inside_mask = cv2.imread(inside_mask_path, cv2.IMREAD_GRAYSCALE) / 255
+        # img = self.images[self.ids[idx]]
+        # inside_mask = self.inside_masks[self.ids[idx]]
+        # # boundary_mask = self.boundary_masks[self.ids[idx]]
+        # touching_borders_mask = self.overlapped_masks[self.ids[idx]]
+
+        img_id = self.ids[idx]
+        img_path = os.path.join(self.root_dir, IMAGES_DIR, img_id + '.tif')
+        img = cv2.imread(img_path)
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB) if not self.bgr else img
+        inside_mask_path = os.path.join(self.root_dir, INSIDE_MASKS_DIR, img_id + '.png')
+        inside_mask = cv2.imread(inside_mask_path, cv2.IMREAD_GRAYSCALE) / 255
         # boundary_mask_path = os.path.join(self.root_dir, BOUNDARY_MASKS_DIR, img_id + '.png')
         # boundary_mask = cv2.imread(boundary_mask_path, cv2.IMREAD_GRAYSCALE) / 255
+        touching_borders_mask_path = os.path.join(self.root_dir, TOUCHING_BORDERS_DIR, img_id + '.png')
+        touching_borders_mask = cv2.imread(touching_borders_mask_path, cv2.IMREAD_GRAYSCALE) / 255
 
         if self.patch_coords is not None:
             y1, x1, y2, x2 = self.patch_coords[idx]
             img             = img[y1:y2, x1:x2, :]
             inside_mask     = inside_mask[y1:y2, x1:x2]
-            boundary_mask   = boundary_mask[y1:y2, x1:x2]
+            # boundary_mask   = boundary_mask[y1:y2, x1:x2]
+            touching_borders_mask = touching_borders_mask[y1:y2, x1:x2]
 
-        masks = np.stack([inside_mask, boundary_mask], axis=-1)
+        # masks = np.stack([inside_mask, boundary_mask], axis=-1)
+        masks = np.stack([inside_mask, touching_borders_mask], axis=-1)
         if self.transform is not None:
             img, masks = self.transform(img, masks)
 
         # background_mask = 1 - np.any(masks, axis=-1, keepdims=True)
         # masks = np.append(masks, background_mask, axis=-1)
 
-        masks = masks[:, :, 0] + 2*masks[:, :, 1]
+        # masks = masks[:, :, 0] + 2*masks[:, :, 1] + 3*masks[:, :, 2]
+        masks = np.maximum(masks[:, :, 0], 2*masks[:, :, 1])
         masks = np.expand_dims(masks, axis=0)
 
         sample = {'image': img, 'masks': masks}
