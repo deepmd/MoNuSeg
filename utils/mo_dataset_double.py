@@ -60,11 +60,13 @@ class MODatasetDouble(Dataset):
         if self.gate_image:
             gt_mask = self.gt_masks[self.ids[idx]]
             img = img * np.repeat(gt_mask[:, :, np.newaxis], img.shape[-1], axis=2)
+            labels = labels * gt_mask
 
         if self.patch_coords is not None:
             y1, x1, y2, x2 = self.patch_coords[idx]
             img = img[y1:y2, x1:x2, :]
             labels = labels[y1:y2, x1:x2]
+            gt_mask = gt_mask[y1:y2, x1:x2]
 
         # labels, _, _ = skimage.segmentation.relabel_sequential(labels)
         # labels = [labels == label for label in range(1, len(np.unique(labels)))]
@@ -76,11 +78,14 @@ class MODatasetDouble(Dataset):
         mask = np.sum(labels > 0, axis=-1).astype(np.uint8)
 
         if self.transform is not None:
-            img, mask, labels = self.transform(img, mask.astype(np.float), labels)
+            all_masks = np.stack([mask.astype(np.float), gt_mask.astype(np.float)], axis=-1)
+            img, all_masks, labels = self.transform(img, all_masks, labels)
+            mask = all_masks[:,:,0]
+            gt_mask = all_masks[:,:,1]
 
         centroids, vectors, areas = helper.get_centroids_vectors_areas(labels, centroid_size=3, vectors_3d=self.vectors_3d)
         masks = np.stack([mask, centroids], axis=0)
-        sample = {'image': img, 'masks': masks, 'vectors': vectors, 'areas': areas}
+        sample = {'image': img, 'masks': masks, 'vectors': vectors, 'areas': areas, 'gt_mask': gt_mask}
 
         return sample
 

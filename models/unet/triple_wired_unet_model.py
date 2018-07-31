@@ -17,6 +17,7 @@ class TripleWiredUNet(TripleUNet):
         unet3_d_outs = []
         output1 = self.unet1(x)
 
+        # mask = torch.gt(output1[:, 0], 0.5).float()
         mask = output1[:, 0]
         mask = torch.unsqueeze(mask, dim=1)
         mask_in = mask.repeat((1, x.shape[1], 1, 1))
