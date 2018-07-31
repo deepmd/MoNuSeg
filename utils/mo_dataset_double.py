@@ -11,7 +11,6 @@ class MODatasetDouble(Dataset):
 
     def __init__(self, root_dir, ids, num_patches=None, patch_size=None, transform=None, erosion=None,
                  gate_image=True, vectors_3d=False, bgr=False):
-        self.root_dir = root_dir
         self.ids = ids
         self.transform = transform
         self.erosion = erosion
@@ -26,7 +25,7 @@ class MODatasetDouble(Dataset):
                 self.patch_coords = self.patch_coords if self.patch_coords.ndim > 1 else np.expand_dims(
                     self.patch_coords, axis=0)
             else:
-                img_path = os.path.join(self.root_dir, IMAGES_DIR, self.ids[0]+'.tif')
+                img_path = os.path.join(root_dir, IMAGES_DIR, self.ids[0]+'.tif')
                 img = cv2.imread(img_path)
                 self.patch_coords = np.zeros((len(self.ids), 4), dtype=np.int)
                 self.patch_coords[:, 0] = np.random.randint(0, img.shape[:-1][0] - patch_size, (len(self.ids)))
@@ -38,15 +37,15 @@ class MODatasetDouble(Dataset):
         self.labels = {}
         self.gt_masks = {}
         for img_id in ids:
-            img_path = os.path.join(self.root_dir, IMAGES_DIR, img_id+'.tif')
+            img_path = os.path.join(root_dir, IMAGES_DIR, img_id+'.tif')
             img = cv2.imread(img_path)
             img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB) if not bgr else img
             self.images[img_id] = img
-            labels_path = os.path.join(self.root_dir, LABELS_DIR, img_id+'.npy')
+            labels_path = os.path.join(root_dir, LABELS_DIR, img_id+'.npy')
             labels = np.load(labels_path)
             self.labels[img_id] = labels
             if gate_image:
-                gt_mask_path = os.path.join(self.root_dir, MASKS_DIR, img_id+'.png')
+                gt_mask_path = os.path.join(root_dir, MASKS_DIR, img_id+'.png')
                 gt_mask = cv2.imread(gt_mask_path, cv2.IMREAD_GRAYSCALE)
                 self.gt_masks[img_id] = (gt_mask / 255).astype(np.uint8)
 
@@ -92,7 +91,7 @@ class MODatasetDouble(Dataset):
 
 # -----------------------------------------------------------------------
 def train_transforms(image, mask, labels):
-    seq = augmentation.get_train_augmenters_seq()
+    seq = augmentation.get_train_augmenters_seq1()
     hooks_masks = augmentation.get_train_masks_augmenters_deactivator()
 
     # Convert the stochastic sequence of augmenters to a deterministic one.
@@ -107,8 +106,6 @@ def train_transforms(image, mask, labels):
         labels_aug[..., index] = (labels_aug[..., index] > 0).astype(np.uint8)
 
     image_aug_tensor = transforms.ToTensor()(image_aug.copy())
-    # image_aug_tensor = transforms.Normalize([0.03072981, 0.03072981, 0.01682784],
-    #                              [0.17293351, 0.12542403, 0.0771413 ])(image_aug_tensor)
 
     return image_aug_tensor, mask_aug, labels_aug
 

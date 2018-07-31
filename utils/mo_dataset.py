@@ -11,7 +11,6 @@ class MODataset(Dataset):
 
     def __init__(self, root_dir, ids, num_patches=None, patch_size=None, transform=None, bgr=False,
                  masks=['inside', 'boundary', 'background'], numeric_mask=False):
-        self.root_dir = root_dir
         self.ids = ids
         self.transform = transform
         self.req_masks = masks
@@ -24,7 +23,7 @@ class MODataset(Dataset):
                 self.patch_coords = np.genfromtxt(patch_info_path, delimiter=',', dtype=np.int)
                 self.patch_coords = self.patch_coords if self.patch_coords.ndim > 1 else np.expand_dims(self.patch_coords, axis=0)
             else:
-                img_path = os.path.join(self.root_dir, IMAGES_DIR, self.ids[0]+'.tif')
+                img_path = os.path.join(root_dir, IMAGES_DIR, self.ids[0]+'.tif')
                 img = cv2.imread(img_path)
                 self.patch_coords = np.zeros((len(self.ids), 4), dtype=np.int)
                 self.patch_coords[:, 0] = np.random.randint(0, img.shape[:-1][0]-patch_size, (len(self.ids)))
@@ -35,26 +34,26 @@ class MODataset(Dataset):
         self.images = {}
         self.masks = {}
         for img_id in ids:
-            img_path = os.path.join(self.root_dir, IMAGES_DIR, img_id+'.tif')
+            img_path = os.path.join(root_dir, IMAGES_DIR, img_id+'.tif')
             img = cv2.imread(img_path)
             img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB) if not bgr else img
             self.images[img_id] = img
             self.masks[img_id] = {}
             if 'inside' in self.req_masks:
-                inside_mask_path = os.path.join(self.root_dir, INSIDE_MASKS_DIR, img_id+'.png')
+                inside_mask_path = os.path.join(root_dir, INSIDE_MASKS_DIR, img_id+'.png')
                 inside_mask = cv2.imread(inside_mask_path, cv2.IMREAD_GRAYSCALE) / 255
                 self.masks[img_id]['inside'] = inside_mask
             if 'boundary' in self.req_masks:
-                boundary_mask_path = os.path.join(self.root_dir, BOUNDARY_MASKS_DIR, img_id+'.png')
+                boundary_mask_path = os.path.join(root_dir, BOUNDARY_MASKS_DIR, img_id+'.png')
                 boundary_mask = cv2.imread(boundary_mask_path, cv2.IMREAD_GRAYSCALE) / 255
                 self.masks[img_id]['boundary'] = boundary_mask
             if 'mask' in self.req_masks or 'background' in self.req_masks:
-                mask_path = os.path.join(self.root_dir, MASKS_DIR, img_id+'.png')
+                mask_path = os.path.join(root_dir, MASKS_DIR, img_id+'.png')
                 mask = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE) / 255
                 self.masks[img_id]['mask'] = mask
                 self.masks[img_id]['background'] = 1 - mask
             if 'touching' in self.req_masks:
-                touching_path = os.path.join(self.root_dir, TOUCHING_BORDERS_DIR, img_id+'.png')
+                touching_path = os.path.join(root_dir, TOUCHING_BORDERS_DIR, img_id+'.png')
                 touching_border = cv2.imread(touching_path, cv2.IMREAD_GRAYSCALE) / 255
                 self.masks[img_id]['touching'] = touching_border
 
