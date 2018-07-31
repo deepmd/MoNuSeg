@@ -36,13 +36,19 @@ def do_prediction(net, output_path, test_ids, patch_size, stride, post_processin
         os.makedirs(output_path)
         os.makedirs(os.path.join(output_path, LABELS_DIR))
 
+    def model(img):
+        outputs = net(img)
+        pred = F.log_softmax(outputs, dim=1)
+        pred = (pred.argmax(dim=1, keepdim=True) == 1)
+        return pred
+
     sum_agg_jac = 0
     sum_dice = 0
     for test_id in test_ids:
         img_path = os.path.join(INPUT_DIR, IMAGES_DIR, test_id+'.tif')
         img = cv2.imread(img_path)
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        pred = predict(net, img, patch_size, patch_size, stride, stride)
+        pred = predict(model, img, patch_size, patch_size, stride, stride)
         pred_labels = post_processing(pred)
         io.imsave(os.path.join(output_path, test_id+'.png'), pred_labels*255)
         if labeling:

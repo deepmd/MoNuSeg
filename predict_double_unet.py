@@ -50,7 +50,7 @@ def do_prediction(net, output_path, test_ids, patch_size, stride, dilation, gate
             outputs = net(img, mask)
         else:
             outputs = net(img)
-        return outputs[-1]
+        return F.sigmoid(outputs[-1])
 
     sum_agg_jac = 0
     sum_dice = 0
@@ -108,7 +108,7 @@ def do_prediction(net, output_path, test_ids, patch_size, stride, dilation, gate
 ########################### Config Predict ##############################
 net = DoubleWiredUNet(DOUBLE_UNET_CONFIG_1).cuda()
 
-weight_path = os.path.join(WEIGHTS_DIR, 'test/dwunet2_9_1e-03_0.4998.pth')
+weight_path = os.path.join(WEIGHTS_DIR, 'dwunet3_20_1e-04_0.2303.pth')
 net.load_state_dict(torch.load(weight_path))
 output_path = os.path.join(OUTPUT_DIR, 'DWUNET15')
 
