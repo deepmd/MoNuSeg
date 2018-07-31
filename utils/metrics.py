@@ -97,10 +97,10 @@ class WeightedSoftDiceLoss(nn.Module):
         intersection = (m1 * m2)
         smooth = 1
         score = (2. * (w2*intersection).sum(1) + smooth) / ((w2*m1).sum(1) + (w2*m2).sum(1) + smooth)
-                # + (2. * intersection.sum(1) + smooth) / (m1.sum(1) + m2.sum(1) + smooth)
+                 # + (2. * intersection.sum(1) + smooth) / (m1.sum(1) + m2.sum(1) + smooth)
         loss = 1 - score.sum()/num
+
         return loss
-    return loss
 
 
 def dice_loss_with_logits(input, target, weight=None, dice_w=None):
@@ -112,8 +112,6 @@ def dice_loss_with_logits(input, target, weight=None, dice_w=None):
         loss += w[d] * (1 - soft_dice_1d(probs[:, d], target[:, d], None if weight is None else weight[:, d]))
     return loss
 
-
-
 def angular_error(input, target, weight):
     dot_prods = torch.sum(input * target, 1)
     dot_prods = dot_prods.clamp(-1, 1)
@@ -121,6 +119,25 @@ def angular_error(input, target, weight):
     # loss = torch.sum(error_angles * error_angles * weight)
     loss = torch.mean(error_angles * error_angles * weight)
     return loss
+
+def ce_dice_value(logits, labels, dice_w=None):
+    dice = 0
+    labels = helper.make_one_hot(labels, C=logits.shape[1])
+    C = labels.shape[1]
+    for d in range(C):
+        w = 1/C if dice_w is None else dice_w[d]
+        dice = dice + w * dice_value_1d(logits[:, d], labels[:, d])
+    return dice
+
+def dice_value_1d(logits, labels):
+    # probs = F.sigmoid(logits)
+    num   = labels.shape[0]
+    m1    = logits.view(num,-1)
+    m2    = labels.view(num,-1)
+    intersection = (m1 * m2)
+    smooth = 1
+    score = (2. * intersection.sum(1) + smooth) / (m1.sum(1) + m2.sum(1) + smooth)
+    return score.sum()/num
 
 
 def dice_value(input, target, dice_w=None):
