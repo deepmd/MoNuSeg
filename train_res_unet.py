@@ -134,11 +134,11 @@ net = Res_UNet(layers=34, out_channels=3).cuda()
 # net.load_state_dict(torch.load(weight_path))
 
 # def criterion(logits, labels):
-#     return criterion_BCE_SoftDice(logits, labels, dice_w=[0.5, 0.5, 0], use_weight=False)
+#     return criterion_BCE_SoftDice(logits, labels, dice_w=[0.5, 0.5, 0])
 
 
 def criterion(logits, labels):
-    return criterion_CCE_SoftDice(logits, labels, dice_w=None, use_weight=False)
+    return criterion_CCE_SoftDice(logits, labels)
 
 
 for param in net.resnet.parameters():

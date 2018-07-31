@@ -16,65 +16,18 @@ def criterion_AngularError(input, target, area, vectors_count=2, weight_min=0):
     loss = 0
     for i in range(0, C, vectors_dims):
         loss += angular_error(input[:, i:i+vectors_dims], target[:, i:i+vectors_dims], weight)
-
     return loss
 
 
-def criterion_BCE_SoftDice(input, target, dice_w=None, use_weight=False):
-    # compute weight
-    if use_weight:
-        batch_size, C, H, W = target.shape
-        if H <= 128:
-            kernel_size = 11
-        elif H <= 256:
-            kernel_size = 21
-        elif H <= 512:
-            kernel_size = 21
-        else:
-            kernel_size = 41
-        a = F.avg_pool2d(target[:, 0], kernel_size=kernel_size, padding=kernel_size // 2, stride=1)
-        border = (a.ge(0.01) * a.le(0.99)).float()
-        weight = torch.ones(a.shape).cuda(async=True)
-        w0 = weight.sum()
-        weight = weight + border*2
-        w1 = weight.sum()
-        weight = weight * (w0 / w1)
-        weight = weight.repeat((C, 1, 1)).reshape(target.shape)
-    else:
-        weight = None
-
+def criterion_BCE_SoftDice(input, target, weight=None, dice_w=None):
     loss = F.binary_cross_entropy_with_logits(input, target, weight) + \
            dice_loss_with_logits(input, target, weight, dice_w)
-
     return loss
 
 
-def criterion_CCE_SoftDice(input, target, dice_w=None, use_weight=False):
-    # compute weights
-    if use_weight:
-        batch_size, C, H, W = target.shape
-        if H <= 128:
-            kernel_size = 11
-        elif H <= 256:
-            kernel_size = 21
-        elif H <= 512:
-            kernel_size = 21
-        else:
-            kernel_size = 41
-        a = F.avg_pool2d(target[:, 0], kernel_size=kernel_size, padding=kernel_size // 2, stride=1)
-        border = (a.ge(0.01) * a.le(0.99)).float()
-        weight = torch.ones(a.shape).cuda(async=True)
-        w0 = weight.sum()
-        weight = weight + border*2
-        w1 = weight.sum()
-        weight = weight * (w0 / w1)
-        weight = weight.repeat((C, 1, 1)).reshape(target.shape)
-    else:
-        weight = None
-
+def criterion_CCE_SoftDice(input, target, weight=None, dice_w=None):
     loss = F.cross_entropy(input, torch.squeeze(target)) + \
            ce_dice_loss_with_logits(input, target, weight, dice_w)
-
     return loss
 
 
@@ -142,6 +95,27 @@ def soft_dice_1d(input, target, weight=None):
         w2 = w * w
         score = (2. * (w2 * intersection).sum(1) + smooth) / ((w2 * m1).sum(1) + (w2 * m2).sum(1) + smooth)
     return score.sum() / num
+
+
+def boundary_aware_weight(target):
+    batch_size, C, H, W = target.shape
+    if H <= 128:
+        kernel_size = 11
+    elif H <= 256:
+        kernel_size = 21
+    elif H <= 512:
+        kernel_size = 21
+    else:
+        kernel_size = 41
+    a = F.avg_pool2d(target[:, 0], kernel_size=kernel_size, padding=kernel_size // 2, stride=1)
+    border = (a.ge(0.01) * a.le(0.99)).float()
+    weight = torch.ones(a.shape).cuda(async=True)
+    w0 = weight.sum()
+    weight = weight + border * 2
+    w1 = weight.sum()
+    weight = weight * (w0 / w1)
+    weight = weight.repeat((C, 1, 1)).reshape(target.shape)
+    return weight
 
 
 class MetricMonitor:

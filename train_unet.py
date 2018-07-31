@@ -130,14 +130,14 @@ def train_model(model, criterion, optimizer, scheduler=None, save_path=None, num
 
 
 ########################### Config Train ##############################
-net = UNet(UNET_CONFIG).cuda()
+net = UNet(UNET_CONFIG_0).cuda()
 
 
 # def criterion(logits, labels, weights):
-#     return criterion_BCE_SoftDice_WEIGHTS(logits, labels, weights, dice_w=None)
+#     return criterion_BCE_SoftDice(logits, labels, weights)
 
 def criterion(logits, labels):
-    return criterion_CCE_SoftDice(logits, labels, dice_w=None, use_weight=False)
+    return criterion_CCE_SoftDice(logits, labels)
 
 
 print('\n---------------- Training unet ----------------')

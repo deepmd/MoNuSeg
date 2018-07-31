@@ -143,10 +143,10 @@ net = VGG_UNet16(num_classes=3, pretrained=True).cuda()
 # net.load_state_dict(torch.load(weight_path))
 
 # def criterion(logits, labels, weights):
-#     return criterion_BCE_SoftDice_WEIGHTS(logits, labels, weights, dice_w=None)
+#     return criterion_BCE_SoftDice(logits, labels, weights)
 
 def criterion(logits, labels):
-    return criterion_CCE_SoftDice(logits, labels, dice_w=None, use_weight=False)
+    return criterion_CCE_SoftDice(logits, labels)
 
 
 print('\n---------------- Training unet ----------------')
