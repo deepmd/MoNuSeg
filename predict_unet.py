@@ -20,7 +20,7 @@ def post_processing(pred):
     # labels = skmorph.label(inside_pred, connectivity=1)
     # labels = skmorph.dilation(labels)
     inside_pred = morphology.binary_fill_holes(np.squeeze(pred)).astype(np.int)
-    labels = skmorph.binary_dilation(inside_pred).astype(np.int)
+    labels = skmorph.binary_dilation(inside_pred, selem=skmorph.square(3)).astype(np.int)
     return labels
 
 
@@ -30,9 +30,9 @@ def post_processing(pred):
 net = UNet16(num_classes=3, pretrained=False).cuda()
 # net = LinkNet34(num_classes=3, pretrained=True).cuda()
 
-weight_path = os.path.join(WEIGHTS_DIR, 'UNET3/unet-0.6710.pth')
+weight_path = os.path.join(WEIGHTS_DIR, 'UNET3/unet-0.6693.pth')
 net.load_state_dict(torch.load(weight_path))
-output_path = 'UNET_VGG16_512_INSIDE_Mask'
+output_path = 'UNET_VGG16_512_Mask_Less_Aug'
 output_path = os.path.join(OUTPUT_DIR, output_path)
 if not os.path.exists(output_path):
     os.makedirs(output_path)
@@ -44,8 +44,8 @@ def model(img):
 
 sum_agg_jac = 0
 sum_dice = 0
-all_ids = [os.path.splitext(f)[0] for f in os.listdir(os.path.join(INPUT_DIR, IMAGES_DIR))]
-for test_id in all_ids:
+# all_ids = [os.path.splitext(f)[0] for f in os.listdir(os.path.join(INPUT_DIR, IMAGES_DIR))]
+for test_id in TEST_IDS:
     img_path = os.path.join(INPUT_DIR, IMAGES_DIR, test_id+'.tif')
     img = cv2.imread(img_path)
     img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
@@ -83,4 +83,4 @@ for test_id in all_ids:
 
 print('--------------------------------------')
 # print('Mean Aggregated Jaccard Index: {:.4f}'.format(sum_agg_jac/len(TEST_IDS)))
-print('Mean Dice Index: {:.4f}'.format(sum_dice/len(all_ids)))
+print('Mean Dice Index: {:.4f}'.format(sum_dice/len(TEST_IDS)))
