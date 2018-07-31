@@ -1,8 +1,10 @@
 from common import *
+from consts import *
 from utils import extract_patches
 
 
-def predict(model, test_img, patch_height, patch_width, stride_height, stride_width, average_mode=True, mask=None):
+def predict(model, test_img, patch_height, patch_width, stride_height, stride_width, average_mode=True,
+            normalize_img=False, softmax=False, mask=None):
     test_img = test_img[np.newaxis, ...]
     test_img = np.moveaxis(test_img, 3, 1)
     full_img_height = test_img.shape[2]
@@ -25,7 +27,7 @@ def predict(model, test_img, patch_height, patch_width, stride_height, stride_wi
         patches_masks, _, _ = extract_patches.get_data_testing_overlap(
             test_imgs=mask,
             patch_height=patch_height, patch_width=patch_width,
-            stride_height=stride_torch.floatheight, stride_width=stride_width)
+            stride_height=stride_height, stride_width=stride_width)
     else:
         patches_masks, _, _ = extract_patches.get_data_testing(
             test_imgs=mask, patch_height=patch_height, patch_width=patch_width)
@@ -37,8 +39,8 @@ def predict(model, test_img, patch_height, patch_width, stride_height, stride_wi
     pred_patches = None
     for id, (sample, mask) in enumerate(zip(patches_imgs_test, patches_masks)):
         sample = transforms.ToTensor()(sample.astype(np.uint8))
-        sample = transforms.Normalize([0.8275685641750257, 0.5215321518722066, 0.646311050624383],
-                                      [0.16204139441725898, 0.248547854527502, 0.2014914668413328])(sample)
+        if normalize_img:
+            sample = transforms.Normalize(IMAGES_MEAN, IMAGES_STD)(sample)
         sample = torch.unsqueeze(sample, 0)
         sample = torch.tensor(sample, dtype=torch.float).cuda()
 
@@ -47,9 +49,11 @@ def predict(model, test_img, patch_height, patch_width, stride_height, stride_wi
         else:
             mask = torch.tensor(mask, dtype=torch.float).cuda()
             pred = model(sample, mask)
-        pred = F.log_softmax(pred, dim=1)
-        pred = (pred.argmax(dim=1, keepdim=True) == 1)
-        # pred = F.sigmoid(pred)
+        if softmax:
+            pred = F.log_softmax(pred, dim=1)
+            pred = (pred.argmax(dim=1, keepdim=True) == 1)
+        else:
+            pred = F.sigmoid(pred)
         if pred_patches is None:
             pred_patches = np.zeros((out_shape[0], pred.shape[1], out_shape[1], out_shape[2]), dtype=np.float32)
         pred_patches[id, ...] = pred.data.cpu().numpy()

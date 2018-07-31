@@ -3,11 +3,10 @@ from sklearn.model_selection import train_test_split
 from common import *
 from consts import *
 from utils import init
-# from utils.mo_dataset import MODataset
-from utils.mo_tb_dataset import MOTBDataset
-from utils.metrics import criterion_CCE_SoftDice, dice_value, MetricMonitor
+from utils.mo_dataset import MODataset
+from utils.metrics import criterion_CCE_SoftDice, ce_dice_value, MetricMonitor
 from utils import augmentation
-from models.unet.vgg_unet_model import UNet16
+from models.vgg_unet import VGG_UNet16
 
 init.set_results_reproducible()
 init.init_torch()
@@ -15,7 +14,7 @@ init.init_torch()
 
 ############################# Load Data ##################################
 def train_transforms(image, masks):
-    seq = augmentation.get_train_augmenters_seq()
+    seq = augmentation.get_train_augmenters_seq2()
     hooks_masks = augmentation.get_train_masks_augmenters_deactivator()
 
     # Convert the stochastic sequence of augmenters to a deterministic one.
@@ -25,8 +24,7 @@ def train_transforms(image, masks):
     masks_aug = seq_det.augment_images([masks], hooks=hooks_masks)[0]
 
     image_aug_tensor = transforms.ToTensor()(image_aug.copy())
-    image_aug_tensor = transforms.Normalize([0.8275685641750257, 0.5215321518722066, 0.646311050624383],
-                                            [0.16204139441725898, 0.248547854527502, 0.2014914668413328])(image_aug_tensor)
+    image_aug_tensor = transforms.Normalize(IMAGES_MEAN, IMAGES_STD)(image_aug_tensor)
 
     masks_aug = (masks_aug >= MASK_THRESHOLD).astype(np.uint8)
 
@@ -35,8 +33,7 @@ def train_transforms(image, masks):
 
 def valid_transforms(image, masks):
     img_tensor = transforms.ToTensor()(image.copy())
-    img_tensor = transforms.Normalize([0.8275685641750257, 0.5215321518722066, 0.646311050624383],
-                                      [0.16204139441725898, 0.248547854527502, 0.2014914668413328])(img_tensor)
+    img_tensor = transforms.Normalize(IMAGES_MEAN, IMAGES_STD)(img_tensor)
 
     return img_tensor, masks
 
@@ -46,11 +43,13 @@ all_ids = [os.path.splitext(f)[0] for f in os.listdir(os.path.join(INPUT_DIR, IM
 train_ids = [i for i in all_ids if i not in TEST_IDS]
 ids_train, ids_valid = train_test_split(train_ids, test_size=0.2, random_state=42)
 ids = {'train': ids_train, 'valid': ids_valid}
-datasets = {x: MOTBDataset(INPUT_DIR,
-                           ids[x],
-                           num_patches=200,
-                           patch_size=512,
-                           transform=trans[x])
+datasets = {x: MODataset(INPUT_DIR,
+                         ids[x],
+                         num_patches=200,
+                         patch_size=512,
+                         transform=trans[x],
+                         masks=['inside', 'touching'],
+                         numeric_mask=True)
            for x in ['train', 'valid']}
 dataloaders = {x: torch.utils.data.DataLoader(datasets[x],
                                               batch_size=4,
@@ -98,7 +97,7 @@ def train_model(model, criterion, optimizer, scheduler=None, save_path=None, num
                         optimizer.zero_grad()
 
                 # statistics
-                dice = dice_value(outputs.data, targets.data, None)
+                dice = ce_dice_value(outputs.data, targets.data, None)
                 monitor.update('loss', loss.data, inputs.shape[0])
                 monitor.update('dice', dice.data, inputs.shape[0])
                 stream.set_description(
@@ -138,14 +137,13 @@ def train_model(model, criterion, optimizer, scheduler=None, save_path=None, num
 # net = UNet(UNET_CONFIG).cuda()
 # net = UNet11(num_classes=3, pretrained=True).cuda()
 # net = LinkNet34(num_classes=3, pretrained=True).cuda()
-net = UNet16(num_classes=3, pretrained=True).cuda()
+net = VGG_UNet16(num_classes=3, pretrained=True).cuda()
 
-weight_path = os.path.join(WEIGHTS_DIR, 'UNET3/unet-0.5996.pth')
-net.load_state_dict(torch.load(weight_path))
+# weight_path = os.path.join(WEIGHTS_DIR, 'UNET3/unet-0.5996.pth')
+# net.load_state_dict(torch.load(weight_path))
 
 # def criterion(logits, labels, weights):
 #     return criterion_BCE_SoftDice_WEIGHTS(logits, labels, weights, dice_w=None)
-
 
 def criterion(logits, labels):
     return criterion_CCE_SoftDice(logits, labels, dice_w=None, use_weight=False)

@@ -4,11 +4,18 @@ from utils import augmentation, helper
 
 class MODataset(Dataset):
     """Multi Organ Dataset"""
+    """Parameters
+       ----------
+       masks : List of values 'mask', 'inside', 'boundary', 'background', 'touching'
+    """
 
-    def __init__(self, root_dir, ids, num_patches=None, patch_size=None, transform=None, bgr=False):
+    def __init__(self, root_dir, ids, num_patches=None, patch_size=None, transform=None, bgr=False,
+                 masks=['inside', 'boundary', 'background'], numeric_mask=False):
         self.root_dir = root_dir
         self.ids = ids
         self.transform = transform
+        self.req_masks = masks
+        self.numeric_mask = numeric_mask
         self.patch_coords = None
         if num_patches is not None and patch_size is not None:
             self.ids = np.random.permutation(np.repeat(ids, num_patches))
@@ -26,52 +33,61 @@ class MODataset(Dataset):
                 self.patch_coords[:, 3] = self.patch_coords[:, 1] + patch_size
                 np.savetxt(patch_info_path, self.patch_coords, delimiter=',', fmt='%d')
         self.images = {}
-        self.inside_masks = {}
-        self.boundary_masks = {}
+        self.masks = {}
         for img_id in ids:
             img_path = os.path.join(self.root_dir, IMAGES_DIR, img_id+'.tif')
             img = cv2.imread(img_path)
             img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB) if not bgr else img
             self.images[img_id] = img
-            inside_mask_path = os.path.join(self.root_dir, INSIDE_MASKS_DIR, img_id+'.png')
-            inside_mask = cv2.imread(inside_mask_path, cv2.IMREAD_GRAYSCALE) / 255
-            self.inside_masks[img_id] = inside_mask
-            boundary_mask_path = os.path.join(self.root_dir, BOUNDARY_MASKS_DIR, img_id+'.png')
-            boundary_mask = cv2.imread(boundary_mask_path, cv2.IMREAD_GRAYSCALE) / 255
-            self.boundary_masks[img_id] = boundary_mask
-        self.bgr = bgr
+            self.masks[img_id] = {}
+            if 'inside' in self.req_masks:
+                inside_mask_path = os.path.join(self.root_dir, INSIDE_MASKS_DIR, img_id+'.png')
+                inside_mask = cv2.imread(inside_mask_path, cv2.IMREAD_GRAYSCALE) / 255
+                self.masks[img_id]['inside'] = inside_mask
+            if 'boundary' in self.req_masks:
+                boundary_mask_path = os.path.join(self.root_dir, BOUNDARY_MASKS_DIR, img_id+'.png')
+                boundary_mask = cv2.imread(boundary_mask_path, cv2.IMREAD_GRAYSCALE) / 255
+                self.masks[img_id]['boundary'] = boundary_mask
+            if 'mask' in self.req_masks or 'background' in self.req_masks:
+                mask_path = os.path.join(self.root_dir, MASKS_DIR, img_id+'.png')
+                mask = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE) / 255
+                self.masks[img_id]['mask'] = mask
+                self.masks[img_id]['background'] = 1 - mask
+            if 'touching' in self.req_masks:
+                touching_path = os.path.join(self.root_dir, TOUCHING_BORDERS_DIR, img_id+'.png')
+                touching_border = cv2.imread(touching_path, cv2.IMREAD_GRAYSCALE) / 255
+                self.masks[img_id]['touching'] = touching_border
 
     def __len__(self):
         return len(self.ids)
 
     def __getitem__(self, idx):
         img = self.images[self.ids[idx]]
-        inside_mask = self.inside_masks[self.ids[idx]]
-        boundary_mask = self.boundary_masks[self.ids[idx]]
-        # img_id = self.ids[idx]
-        # img_path = os.path.join(self.root_dir, IMAGES_DIR, img_id + '.tif')
-        # img = cv2.imread(img_path)
-        # img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB) if not self.bgr else img
-        # inside_mask_path = os.path.join(self.root_dir, INSIDE_MASKS_DIR, img_id + '.png')
-        # inside_mask = cv2.imread(inside_mask_path, cv2.IMREAD_GRAYSCALE) / 255
-        # boundary_mask_path = os.path.join(self.root_dir, BOUNDARY_MASKS_DIR, img_id + '.png')
-        # boundary_mask = cv2.imread(boundary_mask_path, cv2.IMREAD_GRAYSCALE) / 255
+        gt_masks = self.masks[self.ids[idx]]
 
         if self.patch_coords is not None:
             y1, x1, y2, x2 = self.patch_coords[idx]
-            img             = img[y1:y2, x1:x2, :]
-            inside_mask     = inside_mask[y1:y2, x1:x2]
-            boundary_mask   = boundary_mask[y1:y2, x1:x2]
+            img = img[y1:y2, x1:x2, :]
+            masks = [gt_masks[m][y1:y2, x1:x2] for m in self.req_masks]
+        else:
+            masks = [gt_masks[m] for m in self.req_masks]
 
-        masks = np.stack([inside_mask, boundary_mask], axis=-1)
+        masks = np.stack(masks, axis=-1)
+        if masks.ndim == 2:
+            masks = np.expand_dims(masks, axis=-1)
+
         if self.transform is not None:
-            img, masks = self.transform(img, masks)
+            img, masks = self.transform(img, masks.astype(np.float))
 
-        # background_mask = 1 - np.any(masks, axis=-1, keepdims=True)
-        # masks = np.append(masks, background_mask, axis=-1)
+        masks = np.moveaxis(masks, -1, 0)
+        if self.numeric_mask:
+            n_mask = masks[0]
+            for i in range(1, len(self.req_masks)):
+                n_mask = np.maximum(n_mask, masks[i]*(i+1))
+            masks = np.expand_dims(n_mask, axis=0)
 
-        masks = masks[:, :, 0] + 2*masks[:, :, 1]
-        masks = np.expand_dims(masks, axis=0)
+        # DWM = helper.get_distance_transform_based_weight_map(mask, beta=BETA_IN_DISTANCE_WEIGHT)
+        # sample = {'image': img, 'masks': mask, 'weights': DWM}
 
         sample = {'image': img, 'masks': masks}
         return sample
@@ -79,7 +95,7 @@ class MODataset(Dataset):
 
 # -----------------------------------------------------------------------
 def train_transforms(image, masks):
-    seq = augmentation.get_train_augmenters_seq()
+    seq = augmentation.get_train_augmenters_seq1()
     hooks_masks = augmentation.get_train_masks_augmenters_deactivator()
 
     # Convert the stochastic sequence of augmenters to a deterministic one.
@@ -89,9 +105,6 @@ def train_transforms(image, masks):
     masks_aug = seq_det.augment_images([masks], hooks=hooks_masks)[0]
 
     image_aug_tensor = transforms.ToTensor()(image_aug.copy())
-    # image_aug_tensor = transforms.Normalize([0.03072981, 0.03072981, 0.01682784],
-    #                              [0.17293351, 0.12542403, 0.0771413 ])(image_aug_tensor)
-
     masks_aug = (masks_aug >= MASK_THRESHOLD).astype(np.uint8)
 
     return image_aug_tensor, masks_aug
@@ -99,7 +112,8 @@ def train_transforms(image, masks):
 
 def run_check_dataset(transform=None):
     ids = ['TCGA-18-5592-01Z-00-DX1']
-    dataset = MODataset('../../MoNuSeg Training Data', ids, num_patches=10, patch_size=256, transform=transform)
+    dataset = MODataset('../../MoNuSeg Training Data', ids, num_patches=10, patch_size=256, transform=transform,
+                        masks=['inside', 'touching'], numeric_mask=True)
 
     for n in range(len(dataset)):
         sample = dataset[n]
@@ -113,11 +127,11 @@ def run_check_dataset(transform=None):
         bn_cmap[:, -1] = np.linspace(0, 1, 2)
         bn_cmap = colors.ListedColormap(bn_cmap)
         plt.rcParams['axes.facecolor'] = 'black'
-        plt.imshow(np.squeeze(sample['masks']))
-        # plt.imshow(img)
-        # plt.imshow(np.squeeze(sample['masks']), cmap=in_cmap, alpha=0.5)
+        plt.imshow(img)
         # plt.imshow(sample['masks'][0], cmap=in_cmap, alpha=0.5)
         # plt.imshow(sample['masks'][1], cmap=bn_cmap, alpha=0.5)
+        plt.imshow(np.squeeze(sample['masks'] == 1), cmap=in_cmap, alpha=0.5)
+        plt.imshow(np.squeeze(sample['masks'] == 2), cmap=bn_cmap, alpha=0.5)
         plt.show()
         cv2.waitKey(0)
 

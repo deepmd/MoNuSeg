@@ -1,13 +1,14 @@
-from bokeh.core.query import IN
-
+from common import *
 from consts import *
-from os import path
-from glob import glob
-import cv2
-from skimage import morphology as skmorph, io
+from skimage import io
+import skimage.morphology as skmorph
 
 
-mask_names = glob(path.join(INPUT_DIR, MASKS_DIR, '*.png'))
+path = os.path.join(INPUT_DIR, TOUCHING_BORDERS_DIR)
+if not os.path.exists(path):
+    os.makedirs(path)
+
+mask_names = glob.glob(os.path.join(INPUT_DIR, MASKS_DIR, '*.png'))
 for mask_name in mask_names:
     gt_mask = cv2.imread(mask_name, cv2.IMREAD_GRAYSCALE) / 255
     mask = skmorph.binary_dilation(gt_mask, selem=skmorph.square(5))
@@ -15,7 +16,7 @@ for mask_name in mask_names:
     mask = gt_mask - mask
     mask = skmorph.binary_dilation(mask, selem=skmorph.square(5))
 
-    save_path = path.join(INPUT_DIR, TOUCHING_BORDERS_DIR, mask_name.split('/')[-1])
+    save_path = os.path.join(path, mask_name.split('/')[-1])
     io.imsave(save_path, mask*255)
     print('{} saved.'.format(mask_name.split('/')[-1]))
 

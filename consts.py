@@ -24,8 +24,11 @@ DEACTIVATED_MASK_AUG_LIST = ['Superpixels', 'GaussianBlur', 'AverageBlur', 'Medi
 
 # BETA_IN_DISTANCE_WEIGHT = 20
 
+IMAGES_STD = [0.16204139441725898, 0.248547854527502, 0.2014914668413328]
+IMAGES_MEAN = [0.8275685641750257, 0.5215321518722066, 0.646311050624383]
+
 # ------------------ SINGLE UNET CONFIG ----------------------------
-UNET_CONFIG = {'in_channels': 3, 'out_channels': 3,
+UNET_CONFIG_0 = {'in_channels': 3, 'out_channels': 3,
                'down': [(64, 2), (128, 2), (256, 2), (512, 2)],
                'base': [(512, 2)],
                'up'  : [(256, 2), (128, 2), (64, 2), (64, 2)],

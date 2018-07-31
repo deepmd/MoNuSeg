@@ -14,7 +14,7 @@ init.init_torch()
 
 ############################# Load Data ##################################
 def train_transforms(image, masks):
-    seq = augmentation.get_train_augmenters_seq()
+    seq = augmentation.get_train_augmenters_seq2()
     hooks_masks = augmentation.get_train_masks_augmenters_deactivator()
 
     # Convert the stochastic sequence of augmenters to a deterministic one.
@@ -25,16 +25,14 @@ def train_transforms(image, masks):
     masks_aug = (masks_aug >= MASK_THRESHOLD).astype(np.uint8)
 
     image_aug_tensor = transforms.ToTensor()(image_aug.copy())
-    image_aug_tensor = transforms.Normalize([0.8275685641750257, 0.5215321518722066, 0.646311050624383],
-                                            [0.16204139441725898, 0.248547854527502, 0.2014914668413328])(image_aug_tensor)
+    image_aug_tensor = transforms.Normalize(IMAGES_MEAN, IMAGES_STD)(image_aug_tensor)
 
     return image_aug_tensor, masks_aug
 
 
 def valid_transforms(image, masks):
     img_tensor = transforms.ToTensor()(image.copy())
-    img_tensor = transforms.Normalize([0.8275685641750257, 0.5215321518722066, 0.646311050624383],
-                                      [0.16204139441725898, 0.248547854527502, 0.2014914668413328])(img_tensor)
+    img_tensor = transforms.Normalize(IMAGES_MEAN, IMAGES_STD)(img_tensor)
 
     return img_tensor, masks
 

@@ -38,7 +38,7 @@ def post_processing_randomwalk(pred, dilation=None):
     return labels
 
 
-########################### Predict ##############################
+########################### Predicting ##############################
 def do_prediction(net, output_path, test_ids, patch_size, stride, dilation, gate_image, masking,
                   post_processing, visualize=False):
     if not os.path.exists(output_path):
