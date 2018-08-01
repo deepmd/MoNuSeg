@@ -153,7 +153,7 @@ net = DoubleWiredUNet(DOUBLE_UNET_CONFIG_1).cuda()
 # for DoubleWiredUNet_Mask
 # def criterion1(inputs, outputs, vectors, masks, areas):
 #     return criterion_AngularError(outputs[:, :4], vectors, areas) + \
-#            criterion_BCE_SoftDice(torch.unsqueeze(outputs[:, 4], 1), torch.unsqueeze(masks[:, 0], 1), use_weight=False)
+#            criterion_BCE_SoftDice(torch.unsqueeze(outputs[:, 4], 1), torch.unsqueeze(masks[:, 0], 1))
 
 # for DoubleWiredUNet_3d
 # def criterion1(inputs, outputs, vectors, masks, areas):
@@ -164,7 +164,7 @@ def criterion1(inputs, outputs, vectors, masks, areas):
     # return criterion_MSELoss(outputs, vectors)
 
 def criterion2(inputs, outputs, vectors, masks, areas):
-    return criterion_BCE_SoftDice(outputs, masks, dice_w=[0.3, 0.7], use_weight=False)
+    return criterion_BCE_SoftDice(outputs, masks, dice_w=[0.3, 0.7])
 
 
 # weight_path = os.path.join(WEIGHTS_DIR, 'final/dwunet1_20_1e-04_10.6428.pth')

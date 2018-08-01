@@ -145,14 +145,14 @@ def train_model(model, criterion1, criterion2, criterion3, optimizer, scheduler=
 net = TripleWiredUNet(TRIPLE_UNET_CONFIG_1).cuda()
 
 def criterion1(inputs, outputs, vectors, masks, areas):
-    return criterion_BCE_SoftDice(outputs, torch.unsqueeze(masks[:, 0], 1), use_weight=False)
+    return criterion_BCE_SoftDice(outputs, torch.unsqueeze(masks[:, 0], 1))
 
 def criterion2(inputs, outputs, vectors, masks, areas):
     return criterion_AngularError(outputs, vectors, areas)
     # return criterion_MSELoss(outputs, vectors)
 
 def criterion3(inputs, outputs, vectors, masks, areas):
-    return criterion_BCE_SoftDice(outputs, masks, dice_w=[0.3, 0.7], use_weight=False)
+    return criterion_BCE_SoftDice(outputs, masks, dice_w=[0.3, 0.7])
 
 
 # weight_path = os.path.join(WEIGHTS_DIR, 'final/dwunet1_20_1e-04_10.6428.pth')

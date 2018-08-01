@@ -10,7 +10,7 @@ class MODataset(Dataset):
        inputs: List of values 'img', 'pred_mask'
     """
 
-    def __init__(self, root_dir, ids, num_patches=None, patch_size=None, transform=None, bgr=False,
+    def __init__(self, root_dir, ids, weights=None, num_patches=None, patch_size=None, transform=None, bgr=False,
                  inputs=['img'], masks=['inside', 'boundary', 'background'], numeric_mask=False):
         self.ids = ids
         self.transform = transform
@@ -18,8 +18,10 @@ class MODataset(Dataset):
         self.req_masks = masks
         self.numeric_mask = numeric_mask
         self.patch_coords = None
-        if num_patches is not None and patch_size is not None:
-            self.ids = np.random.permutation(np.repeat(ids, num_patches))
+        if (num_patches is not None or weights is not None) and patch_size is not None:
+            repeated_ids = [np.repeat(id, int(weights[id]*BASE_NUM_PATCH)) for id in self.ids]
+            flatted_repeated_ids = [item for id_list in repeated_ids for item in id_list]
+            self.ids = np.random.permutation(flatted_repeated_ids)
             patch_info_path = os.path.join(root_dir, 'patches-{:d}-{:d}.csv'.format(num_patches, patch_size))
             if os.path.isfile(patch_info_path):
                 self.patch_coords = np.genfromtxt(patch_info_path, delimiter=',', dtype=np.int)
@@ -121,8 +123,10 @@ def train_transforms(image, masks):
 
 
 def run_check_dataset(transform=None):
-    ids = ['TCGA-18-5592-01Z-00-DX1']
-    dataset = MODataset('../../MoNuSeg Training Data', ids, num_patches=10, patch_size=256, transform=transform,
+    # ids = ['TCGA-18-5592-01Z-00-DX1']
+    ids = ['TCGA-DK-A2I6-01A-01-TS1', 'TCGA-21-5786-01Z-00-DX1', 'TCGA-G2-A2EK-01A-02-TSB']
+    dataset = MODataset('../../MoNuSeg Training Data', ids, TRAIN_IDS_WEIGHTS,
+                        num_patches=10, patch_size=256, transform=transform,
                         inputs=['img', 'pred_mask'], masks=['inside', 'touching'], numeric_mask=True)
 
     for n in range(len(dataset)):

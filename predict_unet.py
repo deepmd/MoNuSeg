@@ -36,6 +36,12 @@ def do_prediction(net, output_path, test_ids, patch_size, stride, post_processin
         os.makedirs(output_path)
         os.makedirs(os.path.join(output_path, LABELS_DIR))
 
+    def model(img):
+        outputs = net(img)
+        pred = F.log_softmax(outputs, dim=1)
+        pred = (pred.argmax(dim=1, keepdim=True) == 1)
+        return pred
+
     sum_agg_jac = 0
     sum_dice = 0
     for test_id in test_ids:
@@ -49,9 +55,8 @@ def do_prediction(net, output_path, test_ids, patch_size, stride, post_processin
 
             img = np.concatenate((img, pred_mask), axis=-1)
 
-        pred = predict(net, img, patch_size, patch_size, stride, stride, normalize_img=True, softmax=True)
-        pred_labels = np.squeeze(pred).astype(np.int)
-        # pred_labels = post_processing(pred_labels)
+        pred = predict(model, img, patch_size, patch_size, stride, stride)
+        pred_labels = post_processing(pred)
         io.imsave(os.path.join(output_path, test_id+'.png'), pred_labels*255)
         if labeling:
             num_labels = np.max(pred_labels)
@@ -97,13 +102,13 @@ def do_prediction(net, output_path, test_ids, patch_size, stride, post_processin
 ########################### Config Predict ##############################
 # net = UNet(UNET_CONFIG).cuda()
 # net = Res_UNet(layers=34, out_channels=3).cuda()
-net = VGG_UNet16(num_classes=3, in_channels=4, pretrained=False).cuda()
+net = VGG_UNet16(num_classes=3, pretrained=False).cuda()
 # net = LinkNet34(num_classes=3, pretrained=True).cuda()
 
-weight_path = os.path.join(WEIGHTS_DIR, 'UNET3/unet-0.6354.pth')
+weight_path = os.path.join(WEIGHTS_DIR, 'UNET3/unet-0.6693.pth')
 net.load_state_dict(torch.load(weight_path))
-output_path = os.path.join(OUTPUT_DIR, 'Iter2')
+output_path = os.path.join(OUTPUT_DIR, 'UNET_VGG16_512_Mask_Less_Aug')
 
 # all_ids = [os.path.splitext(f)[0] for f in os.listdir(os.path.join(INPUT_DIR, IMAGES_DIR))]
 do_prediction(net, output_path, TEST_IDS, patch_size=128, stride=32,
-              post_processing=post_processing_mask, labeling=False, in_channels=4)
+              post_processing=post_processing_mask, labeling=False)

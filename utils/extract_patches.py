@@ -85,9 +85,9 @@ def recompose_overlap(preds, img_h, img_w, stride_h, stride_w):
     for i in range(N_full_imgs):
         for h in range((img_h-patch_h)//stride_h+1):
             for w in range((img_w-patch_w)//stride_w+1):
-                full_prob[i,:,h*stride_h:(h*stride_h)+patch_h,w*stride_w:(w*stride_w)+patch_w]+=preds[k]
-                full_sum[i,:,h*stride_h:(h*stride_h)+patch_h,w*stride_w:(w*stride_w)+patch_w]+=1
-                k+=1
+                full_prob[i, :, h*stride_h:(h*stride_h)+patch_h, w*stride_w:(w*stride_w)+patch_w] += preds[k]
+                full_sum[i, :, h*stride_h:(h*stride_h)+patch_h, w*stride_w:(w*stride_w)+patch_w] += 1
+                k += 1
     assert(k==preds.shape[0])
     assert(np.min(full_sum)>=1.0)  #at least one
     final_avg = full_prob/full_sum

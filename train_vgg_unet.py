@@ -45,10 +45,11 @@ ids_train, ids_valid = train_test_split(train_ids, test_size=0.2, random_state=4
 ids = {'train': ids_train, 'valid': ids_valid}
 datasets = {x: MODataset(INPUT_DIR,
                          ids[x],
+                         TRAIN_IDS_WEIGHTS,
                          num_patches=200,
                          patch_size=128,
                          transform=trans[x],
-                         inputs=['img', 'pred_mask'],
+                         inputs=['img'],
                          masks=['inside', 'touching'],
                          numeric_mask=True)
            for x in ['train', 'valid']}
@@ -138,16 +139,16 @@ def train_model(model, criterion, optimizer, scheduler=None, save_path=None, num
 # net = UNet(UNET_CONFIG).cuda()
 # net = UNet11(num_classes=3, pretrained=True).cuda()
 # net = LinkNet34(num_classes=3, pretrained=True).cuda()
-net = VGG_UNet16(num_classes=3, in_channels=4, pretrained=True).cuda()
+net = VGG_UNet16(num_classes=3, pretrained=True).cuda()
 
 # weight_path = os.path.join(WEIGHTS_DIR, 'UNET3/unet-0.5996.pth')
 # net.load_state_dict(torch.load(weight_path))
 
 # def criterion(logits, labels, weights):
-#     return criterion_BCE_SoftDice_WEIGHTS(logits, labels, weights, dice_w=None)
+#     return criterion_BCE_SoftDice(logits, labels, weights)
 
 def criterion(logits, labels):
-    return criterion_CCE_SoftDice(logits, labels, dice_w=None, use_weight=False)
+    return criterion_CCE_SoftDice(logits, labels)
 
 
 print('\n---------------- Training unet ----------------')

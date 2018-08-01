@@ -139,7 +139,7 @@ net = RefineNet4Cascade((3, 128), num_classes=1, pretrained=False, freeze_resnet
 
 
 def criterion(logits, labels):
-    return criterion_BCE_SoftDice(logits, labels, dice_w=[0.5, 0.5, 0], use_weight=False)
+    return criterion_BCE_SoftDice(logits, labels, dice_w=[0.5, 0.5, 0])
 
 
 optimizer = optim.SGD(filter(lambda p:  p.requires_grad, net.parameters()), lr=0.001,

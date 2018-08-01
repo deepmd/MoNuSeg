@@ -4,7 +4,7 @@ from utils import extract_patches
 
 
 def predict(model, test_img, patch_height, patch_width, stride_height, stride_width, average_mode=True,
-            normalize_img=False, softmax=False, mask=None):
+            normalize_img=False, mask=None):
     test_img = test_img[np.newaxis, ...]
     test_img = np.moveaxis(test_img, 3, 1)
     full_img_height = test_img.shape[2]
@@ -48,11 +48,6 @@ def predict(model, test_img, patch_height, patch_width, stride_height, stride_wi
         else:
             mask = torch.tensor(mask, dtype=torch.float).cuda()
             pred = model(sample, mask)
-        if softmax:
-            pred = F.log_softmax(pred, dim=1)
-            pred = (pred.argmax(dim=1, keepdim=True) == 1)
-        else:
-            pred = F.sigmoid(pred)
         if pred_patches is None:
             pred_patches = np.zeros((out_shape[0], pred.shape[1], out_shape[1], out_shape[2]), dtype=np.float32)
         pred_patches[id, ...] = pred.data.cpu().numpy()
