@@ -7,12 +7,14 @@ class MODataset(Dataset):
     """Parameters
        ----------
        masks : List of values 'mask', 'inside', 'boundary', 'background', 'touching'
+       inputs: List of values 'img', 'pred_mask'
     """
 
     def __init__(self, root_dir, ids, num_patches=None, patch_size=None, transform=None, bgr=False,
-                 masks=['inside', 'boundary', 'background'], numeric_mask=False):
+                 inputs=['img'], masks=['inside', 'boundary', 'background'], numeric_mask=False):
         self.ids = ids
         self.transform = transform
+        self.req_inputs = inputs
         self.req_masks = masks
         self.numeric_mask = numeric_mask
         self.patch_coords = None
@@ -31,13 +33,20 @@ class MODataset(Dataset):
                 self.patch_coords[:, 2] = self.patch_coords[:, 0] + patch_size
                 self.patch_coords[:, 3] = self.patch_coords[:, 1] + patch_size
                 np.savetxt(patch_info_path, self.patch_coords, delimiter=',', fmt='%d')
-        self.images = {}
+        self.inputs = {}
         self.masks = {}
         for img_id in ids:
-            img_path = os.path.join(root_dir, IMAGES_DIR, img_id+'.tif')
-            img = cv2.imread(img_path)
-            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB) if not bgr else img
-            self.images[img_id] = img
+            self.inputs[img_id] = {}
+            if 'img' in self.req_inputs:
+                img_path = os.path.join(root_dir, IMAGES_DIR, img_id+'.tif')
+                img = cv2.imread(img_path)
+                img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB) if not bgr else img
+                self.inputs[img_id]['img'] = img
+            if 'pred_mask' in self.req_inputs:
+                pred_mask_path = os.path.join(root_dir, PRED_MASKS_DIR, img_id+'.png')
+                pred_mask = cv2.imread(pred_mask_path, cv2.IMREAD_GRAYSCALE)
+                self.inputs[img_id]['pred_mask'] = np.expand_dims(pred_mask, -1)
+
             self.masks[img_id] = {}
             if 'inside' in self.req_masks:
                 inside_mask_path = os.path.join(root_dir, INSIDE_MASKS_DIR, img_id+'.png')
@@ -61,22 +70,24 @@ class MODataset(Dataset):
         return len(self.ids)
 
     def __getitem__(self, idx):
-        img = self.images[self.ids[idx]]
+        inputs = self.inputs[self.ids[idx]]
         gt_masks = self.masks[self.ids[idx]]
 
         if self.patch_coords is not None:
             y1, x1, y2, x2 = self.patch_coords[idx]
-            img = img[y1:y2, x1:x2, :]
+            inputs = [inputs[n][y1:y2, x1:x2, :] for n in self.req_inputs]
             masks = [gt_masks[m][y1:y2, x1:x2] for m in self.req_masks]
         else:
+            inputs = [inputs[n] for n in self.req_inputs]
             masks = [gt_masks[m] for m in self.req_masks]
 
         masks = np.stack(masks, axis=-1)
+        inputs = np.concatenate(inputs, axis=-1)
         if masks.ndim == 2:
             masks = np.expand_dims(masks, axis=-1)
 
         if self.transform is not None:
-            img, masks = self.transform(img, masks.astype(np.float))
+            inputs, masks = self.transform(inputs, masks.astype(np.float))
 
         masks = np.moveaxis(masks, -1, 0)
         if self.numeric_mask:
@@ -88,7 +99,7 @@ class MODataset(Dataset):
         # DWM = helper.get_distance_transform_based_weight_map(mask, beta=BETA_IN_DISTANCE_WEIGHT)
         # sample = {'image': img, 'masks': mask, 'weights': DWM}
 
-        sample = {'image': img, 'masks': masks}
+        sample = {'image': inputs, 'masks': masks}
         return sample
 
 
@@ -112,7 +123,7 @@ def train_transforms(image, masks):
 def run_check_dataset(transform=None):
     ids = ['TCGA-18-5592-01Z-00-DX1']
     dataset = MODataset('../../MoNuSeg Training Data', ids, num_patches=10, patch_size=256, transform=transform,
-                        masks=['inside', 'touching'], numeric_mask=True)
+                        inputs=['img', 'pred_mask'], masks=['inside', 'touching'], numeric_mask=True)
 
     for n in range(len(dataset)):
         sample = dataset[n]

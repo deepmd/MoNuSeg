@@ -24,14 +24,14 @@ def post_processing_label(pred):
 
 
 def post_processing_mask(pred):
-    inside_pred = morphology.binary_fill_holes(np.squeeze(pred)).astype(np.int)
+    inside_pred = morphology.binary_fill_holes(pred).astype(np.int)
     labels = skmorph.binary_dilation(inside_pred, selem=skmorph.square(3)).astype(np.int)
     return labels
 
 
 ########################### Predicting ##############################
 def do_prediction(net, output_path, test_ids, patch_size, stride, post_processing, labeling,
-                  visualize=False):
+                  visualize=False, in_channels=3):
     if not os.path.exists(output_path):
         os.makedirs(output_path)
         os.makedirs(os.path.join(output_path, LABELS_DIR))
@@ -42,8 +42,16 @@ def do_prediction(net, output_path, test_ids, patch_size, stride, post_processin
         img_path = os.path.join(INPUT_DIR, IMAGES_DIR, test_id+'.tif')
         img = cv2.imread(img_path)
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        pred = predict(net, img, patch_size, patch_size, stride, stride)
-        pred_labels = post_processing(pred)
+        if in_channels > 3:
+            pred_mask_path = os.path.join(INPUT_DIR, PRED_MASKS_DIR, test_id + '.png')
+            pred_mask = cv2.imread(pred_mask_path, cv2.IMREAD_GRAYSCALE)
+            pred_mask = np.expand_dims(pred_mask, -1)
+
+            img = np.concatenate((img, pred_mask), axis=-1)
+
+        pred = predict(net, img, patch_size, patch_size, stride, stride, normalize_img=True, softmax=True)
+        pred_labels = np.squeeze(pred).astype(np.int)
+        # pred_labels = post_processing(pred_labels)
         io.imsave(os.path.join(output_path, test_id+'.png'), pred_labels*255)
         if labeling:
             num_labels = np.max(pred_labels)
@@ -89,13 +97,13 @@ def do_prediction(net, output_path, test_ids, patch_size, stride, post_processin
 ########################### Config Predict ##############################
 # net = UNet(UNET_CONFIG).cuda()
 # net = Res_UNet(layers=34, out_channels=3).cuda()
-net = VGG_UNet16(num_classes=3, pretrained=False).cuda()
+net = VGG_UNet16(num_classes=3, in_channels=4, pretrained=False).cuda()
 # net = LinkNet34(num_classes=3, pretrained=True).cuda()
 
-weight_path = os.path.join(WEIGHTS_DIR, 'UNET3/unet-0.6693.pth')
+weight_path = os.path.join(WEIGHTS_DIR, 'UNET3/unet-0.6354.pth')
 net.load_state_dict(torch.load(weight_path))
-output_path = os.path.join(OUTPUT_DIR, 'UNET_VGG16_512_Mask_Less_Aug')
+output_path = os.path.join(OUTPUT_DIR, 'Iter2')
 
 # all_ids = [os.path.splitext(f)[0] for f in os.listdir(os.path.join(INPUT_DIR, IMAGES_DIR))]
 do_prediction(net, output_path, TEST_IDS, patch_size=128, stride=32,
-              post_processing=post_processing_mask, labeling=False)
+              post_processing=post_processing_mask, labeling=False, in_channels=4)

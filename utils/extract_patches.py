@@ -105,7 +105,7 @@ def recompose_overlap(preds, img_h, img_w, stride_h, stride_w):
 # Divide all the full_imgs in pacthes
 def extract_ordered(full_imgs, patch_h, patch_w):
     assert (len(full_imgs.shape) == 4)  # 4D arrays
-    assert (full_imgs.shape[1] == 1 or full_imgs.shape[1] == 3)  # check the channel is 1 or 3
+    # assert (full_imgs.shape[1] == 1 or full_imgs.shape[1] == 3)  # check the channel is 1 or 3
     img_h = full_imgs.shape[2]  # height of the full image
     img_w = full_imgs.shape[3]  # width of the full image
     N_patches_h = img_h // patch_h  # round to lowest int
@@ -133,7 +133,7 @@ def extract_ordered(full_imgs, patch_h, patch_w):
 # Divide all the full_imgs in pacthes
 def extract_ordered_overlap(full_imgs, patch_h, patch_w, stride_h, stride_w):
     assert (len(full_imgs.shape) == 4)  # 4D arrays
-    assert (full_imgs.shape[1] == 1 or full_imgs.shape[1] == 3)  # check the channel is 1 or 3
+    # assert (full_imgs.shape[1] == 1 or full_imgs.shape[1] == 3)  # check the channel is 1 or 3
     img_h = full_imgs.shape[2]  # height of the full image
     img_w = full_imgs.shape[3]  # width of the full image
     assert ((img_h - patch_h) % stride_h == 0 and (img_w - patch_w) % stride_w == 0)
@@ -161,7 +161,7 @@ def extract_ordered_overlap(full_imgs, patch_h, patch_w, stride_h, stride_w):
 
 def paint_border_overlap(full_imgs, patch_h, patch_w, stride_h, stride_w):
     assert (len(full_imgs.shape) == 4)  # 4D arrays
-    assert (full_imgs.shape[1] == 1 or full_imgs.shape[1] == 3)  # check the channel is 1 or 3
+    # assert (full_imgs.shape[1] == 1 or full_imgs.shape[1] == 3)  # check the channel is 1 or 3
     img_h = full_imgs.shape[2]  # height of the full image
     img_w = full_imgs.shape[3]  # width of the full image
 
@@ -193,7 +193,7 @@ def paint_border_overlap(full_imgs, patch_h, patch_w, stride_h, stride_w):
 # Extend the full images becasue patch divison is not exact
 def paint_border(data, patch_h, patch_w):
     assert (len(data.shape) == 4)  # 4D arrays
-    assert (data.shape[1] == 1 or data.shape[1] == 3)  # check the channel is 1 or 3
+    # assert (data.shape[1] == 1 or data.shape[1] == 3)  # check the channel is 1 or 3
     img_h = data.shape[2]
     img_w = data.shape[3]
     if img_h % patch_h == 0:

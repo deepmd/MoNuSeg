@@ -32,7 +32,6 @@ def predict(model, test_img, patch_height, patch_width, stride_height, stride_wi
         patches_masks, _, _ = extract_patches.get_data_testing(
             test_imgs=mask, patch_height=patch_height, patch_width=patch_width)
 
-
     # Calculate the predictions
     patches_imgs_test = np.moveaxis(patches_imgs_test, 1, 3)
     out_shape = patches_imgs_test.shape
