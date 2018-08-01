@@ -127,6 +127,23 @@ DOUBLE_UNET_CONFIG_6 = {
     'concat': 'input-discard_out1'
 }
 
+DOUBLE_UNET_CONFIG_7 = {
+    'unet1': {'in_channels': 3, 'out_channels': 3,
+              'down': [(64, 2), (128, 2), (256, 2), (512, 2)],
+              'base': [(512, 2)],
+              'up'  : [(256, 2), (128, 2), (64, 2), (64, 2)],
+              'up_method': 'bilinear'},
+    'unet2': {'out_channels': 1,
+              'down': [(64, 2), (128, 2), (256, 2), (512, 2)],
+              'base': [(512, 2)],
+              'up'  : [(256, 2), (128, 2), (64, 2), (64, 2)],
+              'up_method': 'bilinear'},
+    'concat': 'input',
+    'normalize': False,
+    'batch_norm': False
+}
+
+# ------------------ DOUBLE UNET 3D CONFIG ----------------------------
 DOUBLE_UNET_3D_CONFIG_1 = {
     'unet1': {'in_channels': 3, 'out_channels': 6,
               'down': [(64, 2), (128, 2), (256, 2), (512, 2)],
@@ -185,6 +202,7 @@ DOUBLE_UNET_3D_CONFIG_4 = {
     'concat': 'penultimate'
 }
 
+# ------------------ TRIPLE UNET CONFIG ----------------------------
 TRIPLE_UNET_CONFIG_1 = {
     'unet1': {'in_channels': 3, 'out_channels': 1,
               'down': [(64, 2), (96, 2), (128, 2), (192, 2), (256, 2), (384, 2)],

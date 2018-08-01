@@ -45,12 +45,19 @@ def do_prediction(net, output_path, test_ids, patch_size, stride, dilation, gate
         os.makedirs(output_path)
         os.makedirs(os.path.join(output_path, LABELS_DIR))
 
-    def model(img, mask=None):
-        if masking:
-            outputs = net(img, mask)
-        else:
-            outputs = net(img)
-        return F.sigmoid(outputs[-1])
+    # def model(img, mask=None):
+    #     if masking:
+    #         outputs = net(img, mask)
+    #     else:
+    #         outputs = net(img)
+    #     return F.sigmoid(outputs[-1])
+
+    def model(img):
+        outputs1, outputs2 = net(img)
+        pred = F.log_softmax(outputs1, dim=1)
+        inside_mask = (pred.argmax(dim=1, keepdim=True) == 1).float()
+        centroids = F.sigmoid(outputs2)
+        return torch.cat((inside_mask, centroids), 1)
 
     sum_agg_jac = 0
     sum_dice = 0
@@ -106,11 +113,11 @@ def do_prediction(net, output_path, test_ids, patch_size, stride, dilation, gate
 
 
 ########################### Config Predict ##############################
-net = DoubleWiredUNet(DOUBLE_UNET_CONFIG_1).cuda()
+net = DoubleWiredUNet(DOUBLE_UNET_CONFIG_7).cuda()
 
-weight_path = os.path.join(WEIGHTS_DIR, 'dwunet3_20_1e-04_0.2303.pth')
+weight_path = os.path.join(WEIGHTS_DIR, 'test/dunet3_20_1e-04_1.2015.pth')
 net.load_state_dict(torch.load(weight_path))
-output_path = os.path.join(OUTPUT_DIR, 'DWUNET15')
+output_path = os.path.join(OUTPUT_DIR, 'DWUNET16')
 
 do_prediction(net, output_path, TEST_IDS, patch_size=128, stride=32, dilation=1,
-              gate_image=True, masking=True, post_processing=post_processing_watershed)
+              gate_image=False, masking=False, post_processing=post_processing_watershed)

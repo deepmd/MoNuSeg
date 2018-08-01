@@ -83,6 +83,23 @@ def get_centroids_vectors_areas(labels, centroid_size=3, vectors_3d=False):
     return centroids, vectors, areas
 
 
+def get_centroids(labels, centroid_size=3):
+    (num_rows, num_cols) = labels.shape[0], labels.shape[1]
+    centroids = np.zeros((num_rows, num_cols)).astype(np.uint8)
+    centroid_range = math.floor((centroid_size-1) / 2)
+
+    for index in range(labels.shape[-1]):
+        mask = (labels[..., index] > 0).astype(np.uint8)
+
+        if np.count_nonzero(mask) != 0:
+            # create vectors to centers of masses
+            center_of_mass = ndimage.measurements.center_of_mass(mask)
+            (xc, yc) = (int(round(center_of_mass[0])), int(round(center_of_mass[1])))
+            centroids[xc - centroid_range:xc + centroid_range + 1, yc - centroid_range:yc + centroid_range + 1] = 1
+
+    return centroids
+
+
 def make_one_hot(labels, C=2):
     '''
     Converts an integer label torch.autograd.Variable to a one-hot Variable.

@@ -9,8 +9,8 @@ class DoubleWiredUNet(DoubleUNet):
         if len(config['unet1']['down']) != len(config['unet2']['down']):
             raise ValueError('Length of \'down\' of both UNets should be the same.')
         self.unet2 = WiredUNet(config['unet2'], config['unet1'])
-        self.l2_norm = normalize()
-        self.bn = nn.BatchNorm2d(config['unet2']['in_channels'])
+        self.l2_norm = normalize() if config.get('normalize', True) else lambda x: x
+        self.bn = nn.BatchNorm2d(config['unet2']['in_channels']) if config.get('batch_norm', True) else lambda x: x
 
     def forward(self, x, mask=None):
         unet1_d_outs = []

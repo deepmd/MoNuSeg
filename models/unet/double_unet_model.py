@@ -16,8 +16,8 @@ class DoubleUNet(nn.Module):
             config2['in_channels'] += config1['up'][-1][0]
         self.unet1 = UNet(config1)
         self.unet2 = UNet(config2)
-        self.l2_norm = normalize()
-        self.bn = nn.BatchNorm2d(config['unet2']['in_channels'])
+        self.l2_norm = normalize() if config.get('normalize', True) else lambda x: x
+        self.bn = nn.BatchNorm2d(config['unet2']['in_channels']) if config.get('batch_norm', True) else lambda x: x
 
     def forward(self, x):
         if self.concat == 'input-discard_out1':
