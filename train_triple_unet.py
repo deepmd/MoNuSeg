@@ -117,7 +117,7 @@ def train_model(model, criterion1, criterion2, criterion3, optimizer, scheduler=
                        (monitor.get_avg('dice3') if compare == 'dice3' else -monitor.get_avg('loss'))
 
             if phase == 'valid' and scheduler is not None:
-                scheduler.step(epoch_val)
+                scheduler.step(-epoch_val)
             
             # deep copy the model
             if (phase == 'valid') and (epoch_val > best_val):

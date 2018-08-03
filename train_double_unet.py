@@ -117,7 +117,7 @@ def train_model(model, criterion1, criterion2, optimizer, scheduler=None, save_p
             epoch_val = epoch_dice if not compare_Loss else -epoch_loss
 
             if phase == 'valid' and scheduler is not None:
-                scheduler.step(epoch_val)
+                scheduler.step(-epoch_val)
             
             # deep copy the model
             if (phase == 'valid') and (epoch_val > best_val):
