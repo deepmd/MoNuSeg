@@ -3,7 +3,7 @@ from torchvision import models
 
 
 class VGG_UNet11(nn.Module):
-    def __init__(self, num_classes=1, num_filters=32, pretrained=False):
+    def __init__(self, num_classes=1, num_filters=32, in_channels=3, pretrained=False):
         """
         :param num_classes:
         :param num_filters:
@@ -14,11 +14,12 @@ class VGG_UNet11(nn.Module):
         super().__init__()
         self.pool = nn.MaxPool2d(2, 2)
 
-        self.num_classes = num_classes
-
         self.encoder = models.vgg11(pretrained=pretrained).features
 
         self.relu = nn.ReLU(inplace=True)
+        self.conv0 = nn.Sequential(nn.Conv2d(in_channels, 3, 1, padding=1),
+                                   self.relu)
+
         self.conv1 = nn.Sequential(self.encoder[0],
                                    self.relu)
 
@@ -55,6 +56,8 @@ class VGG_UNet11(nn.Module):
         self.final = nn.Conv2d(num_filters, num_classes, kernel_size=1)
 
     def forward(self, x):
+        if x.shape[1] > 3:
+            x = self.conv0(x)
         conv1 = self.conv1(x)
         conv2 = self.conv2(self.pool(conv1))
         conv3 = self.conv3(self.pool(conv2))
@@ -78,7 +81,7 @@ class VGG_UNet11(nn.Module):
 
 
 class VGG_UNet16(nn.Module):
-    def __init__(self, num_classes=1, num_filters=32, pretrained=False):
+    def __init__(self, num_classes=1, num_filters=32, in_channels=3, pretrained=False):
         """
         :param num_classes:
         :param num_filters:
@@ -87,13 +90,14 @@ class VGG_UNet16(nn.Module):
             True - encoder pre-trained with VGG11
         """
         super().__init__()
-        self.num_classes = num_classes
-
         self.pool = nn.MaxPool2d(2, 2)
 
         self.encoder = models.vgg16(pretrained=pretrained).features
 
         self.relu = nn.ReLU(inplace=True)
+        self.conv0 = nn.Sequential(nn.Conv2d(in_channels, 3, 1),
+                                   nn.BatchNorm2d(3),
+                                   self.relu)
 
         self.conv1 = nn.Sequential(self.encoder[0],
                                    self.relu,
@@ -136,6 +140,8 @@ class VGG_UNet16(nn.Module):
         self.final = nn.Conv2d(num_filters, num_classes, kernel_size=1)
 
     def forward(self, x):
+        if x.shape[1] > 3:
+            x = self.conv0(x)
         conv1 = self.conv1(x)
         conv2 = self.conv2(self.pool(conv1))
         conv3 = self.conv3(self.pool(conv2))

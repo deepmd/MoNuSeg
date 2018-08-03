@@ -24,14 +24,14 @@ def post_processing_label(pred):
 
 
 def post_processing_mask(pred):
-    inside_pred = morphology.binary_fill_holes(np.squeeze(pred)).astype(np.int)
+    inside_pred = morphology.binary_fill_holes(pred).astype(np.int)
     labels = skmorph.binary_dilation(inside_pred, selem=skmorph.square(3)).astype(np.int)
     return labels
 
 
 ########################### Predicting ##############################
 def do_prediction(net, output_path, test_ids, patch_size, stride, post_processing, labeling,
-                  visualize=False):
+                  visualize=False, in_channels=3):
     if not os.path.exists(output_path):
         os.makedirs(output_path)
         os.makedirs(os.path.join(output_path, LABELS_DIR))
@@ -48,6 +48,13 @@ def do_prediction(net, output_path, test_ids, patch_size, stride, post_processin
         img_path = os.path.join(INPUT_DIR, IMAGES_DIR, test_id+'.tif')
         img = cv2.imread(img_path)
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        if in_channels > 3:
+            pred_mask_path = os.path.join(INPUT_DIR, PRED_MASKS_DIR, test_id + '.png')
+            pred_mask = cv2.imread(pred_mask_path, cv2.IMREAD_GRAYSCALE)
+            pred_mask = np.expand_dims(pred_mask, -1)
+
+            img = np.concatenate((img, pred_mask), axis=-1)
+
         pred = predict(model, img, patch_size, patch_size, stride, stride)
         pred_labels = post_processing(pred)
         io.imsave(os.path.join(output_path, test_id+'.png'), pred_labels*255)

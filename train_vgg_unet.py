@@ -45,14 +45,16 @@ ids_train, ids_valid = train_test_split(train_ids, test_size=0.2, random_state=4
 ids = {'train': ids_train, 'valid': ids_valid}
 datasets = {x: MODataset(INPUT_DIR,
                          ids[x],
+                         TRAIN_IDS_WEIGHTS,
                          num_patches=200,
-                         patch_size=512,
+                         patch_size=128,
                          transform=trans[x],
+                         inputs=['img'],
                          masks=['inside', 'touching'],
                          numeric_mask=True)
            for x in ['train', 'valid']}
 dataloaders = {x: torch.utils.data.DataLoader(datasets[x],
-                                              batch_size=4,
+                                              batch_size=32,
                                               shuffle=True, 
                                               num_workers=8,
                                               pin_memory=True)
@@ -153,7 +155,7 @@ print('\n---------------- Training unet ----------------')
 optimizer = optim.SGD(filter(lambda p:  p.requires_grad, net.parameters()), lr=5e-3,
                       momentum=0.9, weight_decay=0.0001)
 # exp_lr_scheduler = lr_scheduler.StepLR(optimizer, step_size=50, gamma=0.1)
-exp_lr_scheduler = lr_scheduler.ReduceLROnPlateau(optimizer, patience=60, verbose=True)
+exp_lr_scheduler = lr_scheduler.ReduceLROnPlateau(optimizer, patience=40, verbose=True)
 
 save_path = os.path.join(WEIGHTS_DIR, 'UNET3/unet-{:.4f}.pth')
 net = train_model(net, criterion, optimizer, exp_lr_scheduler, save_path, num_epochs=40)

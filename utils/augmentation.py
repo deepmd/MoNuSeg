@@ -101,6 +101,7 @@ def get_train_augmenters_seq1():
 
     return seq
 
+
 def get_train_augmenters_seq2(mode='reflect'):
     # Define our sequence of augmentation steps that will be applied to every image.
     seq = iaa.Sequential(
@@ -153,6 +154,7 @@ def get_train_augmenters_seq2(mode='reflect'):
     )
 
     return seq
+
 
 def get_train_augmenters_seq3():
     # Define our sequence of augmentation steps that will be applied to every image.
