@@ -101,7 +101,7 @@ def get_train_augmenters_seq1():
 
     return seq
 
-def get_train_augmenters_seq2():
+def get_train_augmenters_seq2(mode='reflect'):
     # Define our sequence of augmentation steps that will be applied to every image.
     seq = iaa.Sequential(
         [
@@ -131,8 +131,8 @@ def get_train_augmenters_seq2():
                 rotate=(-90, 90),
                 shear=(-16, 16),
                 order=[0, 1],
-                cval=(0, 255),
-                mode='reflect'
+                cval=0,
+                mode=mode
             )),
 
             # In some images move pixels locally around (with random
@@ -145,7 +145,7 @@ def get_train_augmenters_seq2():
                 scale=(0.01, 0.1),
                 order=[0, 1],
                 cval=0,
-                mode='reflect'
+                mode=mode
             )),
         ],
         # do all of the above augmentations in random order

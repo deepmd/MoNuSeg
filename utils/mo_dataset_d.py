@@ -10,11 +10,12 @@ class MODatasetD(Dataset):
     """Multi Organ Dataset for Double UNet"""
 
     def __init__(self, root_dir, ids, num_patches=None, patch_size=None, transform=None, bgr=False,
-                 masks=['inside', 'touching'], numeric_mask=True):
+                 masks=['inside', 'touching'], numeric_mask=True, zero_centroids=False):
         self.ids = ids
         self.transform = transform
         self.req_masks = masks
         self.numeric_mask = numeric_mask
+        self.zero_centroids = zero_centroids
         self.patch_coords = None
         if num_patches is not None and patch_size is not None:
             self.ids = np.random.permutation(np.repeat(ids, num_patches))
@@ -77,9 +78,12 @@ class MODatasetD(Dataset):
         else:
             masks = [gt_masks[m] for m in self.req_masks]
 
-        labels = [labels == label for label in np.unique(labels) if label != 0]
-        labels = np.stack(labels, axis=-1).astype(np.uint8) if len(labels) > 0 else \
-            np.zeros((img.shape[0], img.shape[1], 1), dtype=np.uint8)
+        if self.zero_centroids:
+            labels = np.zeros((img.shape[0], img.shape[1], 1), dtype=np.uint8)
+        else:
+            labels = [labels == label for label in np.unique(labels) if label != 0]
+            labels = np.stack(labels, axis=-1).astype(np.uint8) if len(labels) > 0 else \
+                np.zeros((img.shape[0], img.shape[1], 1), dtype=np.uint8)
 
         masks = np.stack(masks, axis=-1)
         if masks.ndim == 2:
@@ -95,8 +99,11 @@ class MODatasetD(Dataset):
                 n_mask = np.maximum(n_mask, masks[i] * (i + 1))
             masks = np.expand_dims(n_mask, axis=0)
 
-        centroids = helper.get_centroids(labels, centroid_size=5)
-        centroids = np.expand_dims(centroids, axis=0)
+        if self.zero_centroids:
+            centroids = np.zeros((1, img.shape[1], img.shape[2]))
+        else:
+            centroids = helper.get_centroids(labels, centroid_size=5)
+            centroids = np.expand_dims(centroids, axis=0)
 
         sample = {'image': img, 'masks': masks, 'centroids': centroids}
 

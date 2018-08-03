@@ -1,21 +1,20 @@
 from .unet_parts import *
-from .double_unet_model import DoubleUNet
+from .d_unet_model import DUNet
 from .wired_unet_model import WiredUNet
 
 
-class DoubleWiredUNet(DoubleUNet):
+class DWiredUNet(DUNet):
     def __init__(self, config):
-        super(DoubleWiredUNet, self).__init__(config)
+        super(DWiredUNet, self).__init__(config)
         if len(config['unet1']['down']) != len(config['unet2']['down']):
             raise ValueError('Length of \'down\' of both UNets should be the same.')
         self.unet2 = WiredUNet(config['unet2'], config['unet1'])
-        self.l2_norm = normalize()
         self.bn = nn.BatchNorm2d(config['unet2']['in_channels'])
 
-    def forward(self, x, mask=None):
+    def forward(self, x):
         unet1_d_outs = []
         unet2_d_outs = []
-        inp = x if self.concat == 'input' or self.concat == 'input-discard_out1' else None
+        inp = x
 
         # UNet1
         for down in self.unet1.downs:
@@ -26,22 +25,28 @@ class DoubleWiredUNet(DoubleUNet):
         for up, d_out in zip(self.unet1.ups, reversed(unet1_d_outs)):
             x = up(x, d_out)
         output1 = self.unet1.outc(x)
-        output1 = self.l2_norm(output1)
 
-        if mask is not None:
-            mask = torch.unsqueeze(mask, dim=1)
-            mask = mask.repeat((1, output1.shape[1], 1, 1))
+        if self.masking is not None:
+            out1 = F.softmax(output1, dim=1)
+            mask = (out1.argmax(dim=1, keepdim=True) == self.mask_dim).float() if self.masking == 'hard' else \
+                   out1[:, self.mask_dim]
+            mask = mask.repeat((1, inp.shape[1], 1, 1))
+            inp = inp * mask
 
         if self.concat == 'input-discard_out1':
             x = inp
+        elif self.concat == 'input_softmax_out1':
+            out1 = F.softmax(output1, dim=1)
+            x = torch.cat([inp, out1], dim=1)
         elif self.concat == 'input':
-            x = torch.cat([inp, output1], dim=1) if mask is None else torch.cat([inp, output1*mask], dim=1)
-            x = self.bn(x)
-        elif self.concat == 'penultimate':
-            x = torch.cat([x, output1], dim=1) if mask is None else torch.cat([x, output1*mask], dim=1)
-            x = self.bn(x)
+            x = torch.cat([inp, output1], dim=1)
+        elif self.concat == 'softmax_out1':
+            x = F.softmax(output1, dim=1)
         else:
-            x = output1 if mask is None else output1*mask
+            x = output1
+
+        if self.batch_norm:
+            x = self.bn(x)
 
         # UNet2
         for down, d_out1 in zip(self.unet2.downs, unet1_d_outs):

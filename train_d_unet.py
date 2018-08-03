@@ -6,7 +6,7 @@ from utils import init
 from utils.mo_dataset_d import MODatasetD
 from utils.metrics import criterion_BCE_SoftDice, dice_value, criterion_CCE_SoftDice, ce_dice_value, MetricMonitor
 from utils import augmentation
-from models.unet import DoubleUNet, DoubleWiredUNet
+from models.unet import DUNet, DWiredUNet
 
 init.set_results_reproducible()
 init.init_torch()
@@ -14,27 +14,30 @@ init.init_torch()
 
 ############################# Load Data ##################################
 def train_transforms(image, mask, labels):
-    seq = augmentation.get_train_augmenters_seq1()
+    seq = augmentation.get_train_augmenters_seq2(mode='constant')
     hooks_masks = augmentation.get_train_masks_augmenters_deactivator()
 
     # Convert the stochastic sequence of augmenters to a deterministic one.
     # The deterministic sequence will always apply the exactly same effects to the images.
     seq_det = seq.to_deterministic()  # call this for each batch again, NOT only once at the start
     image_aug = seq_det.augment_images([image])[0]
-    mask_aug = seq_det.augment_images([mask], hooks=hooks_masks)[0]
-    labels_aug = seq_det.augment_images([labels], hooks=hooks_masks)[0]
+    image_aug_tensor = transforms.ToTensor()(image_aug.copy())
+    image_aug_tensor = transforms.Normalize(IMAGES_MEAN, IMAGES_STD)(image_aug_tensor)
 
+    mask_aug = seq_det.augment_images([mask], hooks=hooks_masks)[0]
     mask_aug = (mask_aug >= MASK_THRESHOLD).astype(np.uint8)
+
+    labels_aug = seq_det.augment_images([labels], hooks=hooks_masks)[0]
     for index in range(labels_aug.shape[-1]):
         labels_aug[..., index] = (labels_aug[..., index] > 0).astype(np.uint8)
-
-    image_aug_tensor = transforms.ToTensor()(image_aug.copy())
 
     return image_aug_tensor, mask_aug, labels_aug
 
 
 def valid_transforms(image, mask, labels):
     img_tensor = transforms.ToTensor()(image.copy())
+    img_tensor = transforms.Normalize(IMAGES_MEAN, IMAGES_STD)(img_tensor)
+
     return img_tensor, mask, labels
 
 
@@ -45,23 +48,35 @@ ids_train, ids_valid = train_test_split(train_ids, test_size=0.2, random_state=4
 # ids_train = [i for i in all_ids if i not in TEST_IDS]
 # ids_valid = TEST_IDS
 ids = {'train': ids_train, 'valid': ids_valid}
-datasets = {x: MODatasetD(INPUT_DIR,
-                          ids[x],
-                          num_patches=100,
-                          patch_size=128,
-                          transform=trans[x])
-       for x in ['train', 'valid']}
-dataloaders = {x: torch.utils.data.DataLoader(datasets[x],
-                                              batch_size=4,
-                                              shuffle=True, 
-                                              num_workers=8,
-                                              pin_memory=True)
-              for x in ['train', 'valid']}
-dataset_sizes = {x: len(datasets[x]) for x in ['train', 'valid']}
+datasets1 = {x: MODatasetD(INPUT_DIR,
+                           ids[x],
+                           num_patches=100,
+                           patch_size=128,
+                           transform=trans[x],
+                           zero_centroids=True)
+             for x in ['train', 'valid']}
+dataloaders1 = {x: torch.utils.data.DataLoader(datasets1[x],
+                                               batch_size=4,
+                                               shuffle=True,
+                                               num_workers=8,
+                                               pin_memory=True)
+                for x in ['train', 'valid']}
+datasets2 = {x: MODatasetD(INPUT_DIR,
+                           ids[x],
+                           num_patches=100,
+                           patch_size=128,
+                           transform=trans[x])
+             for x in ['train', 'valid']}
+dataloaders2 = {x: torch.utils.data.DataLoader(datasets2[x],
+                                               batch_size=4,
+                                               shuffle=True,
+                                               num_workers=8,
+                                               pin_memory=True)
+                for x in ['train', 'valid']}
 
 
 ############################# Training the model ##################################
-def train_model(model, criterion1, criterion2, optimizer, scheduler=None, save_path=None,
+def train_model(model, criterion1, criterion2, optimizer, dataloaders, scheduler=None, save_path=None,
                 num_epochs=25, iter_size=1, compare_Loss=False):
     since = time.time()
     
@@ -139,7 +154,7 @@ def train_model(model, criterion1, criterion2, optimizer, scheduler=None, save_p
 
 ########################### Config Train ##############################
 
-net = DoubleWiredUNet(DOUBLE_UNET_CONFIG_7).cuda()
+net = DUNet(D_UNET_CONFIG_8).cuda()
 
 def criterion1(outputs, masks):
     return criterion_CCE_SoftDice(outputs, masks, dice_w=[0.1, 0.6, 0.3])
@@ -148,16 +163,16 @@ def criterion2(outputs, centroids):
     return criterion_BCE_SoftDice(outputs, centroids)
 
 
-# weight_path = os.path.join(WEIGHTS_DIR, 'final/dwunet1_20_1e-04_10.6428.pth')
+# weight_path = os.path.join(WEIGHTS_DIR, 'test/dunet2_37_1e-03_0.5916.pth')
 # net.load_state_dict(torch.load(weight_path))
 print('\n---------------- Training first unet ----------------')
 for param in net.unet2.parameters():
     param.requires_grad = False
 save_path = os.path.join(WEIGHTS_DIR, 'test/dunet1_{:d}_{:.0e}_{:.4f}.pth')
-optimizer = optim.SGD(filter(lambda p:  p.requires_grad, net.parameters()), lr=0.001,
+optimizer = optim.SGD(filter(lambda p:  p.requires_grad, net.parameters()), lr=5e-3,
                       momentum=0.9, weight_decay=0.0001)
 exp_lr_scheduler = lr_scheduler.ReduceLROnPlateau(optimizer, patience=10, verbose=True)
-net = train_model(net, criterion1, None, optimizer, exp_lr_scheduler, save_path, num_epochs=10, compare_Loss=True)
+net = train_model(net, criterion1, None, optimizer, dataloaders1, exp_lr_scheduler, save_path, num_epochs=40, compare_Loss=True)
 
 print('\n---------------- Training second unet ----------------')
 for param in net.unet1.parameters():
@@ -168,13 +183,13 @@ save_path = os.path.join(WEIGHTS_DIR, 'test/dunet2_{:d}_{:.0e}_{:.4f}.pth')
 optimizer = optim.SGD(filter(lambda p:  p.requires_grad, net.parameters()), lr=0.001,
                       momentum=0.9, weight_decay=0.0001)
 exp_lr_scheduler = lr_scheduler.ReduceLROnPlateau(optimizer, patience=10, verbose=True)
-net = train_model(net, None, criterion2, optimizer, exp_lr_scheduler, save_path, num_epochs=50, compare_Loss=True)
+net = train_model(net, None, criterion2, optimizer, dataloaders2, exp_lr_scheduler, save_path, num_epochs=20, compare_Loss=True)
 
 print('\n---------------- Fine-tuning entire net ----------------')
 for param in net.unet1.parameters():
     param.requires_grad = True
 save_path = os.path.join(WEIGHTS_DIR, 'test/dunet3_{:d}_{:.0e}_{:.4f}.pth')
-optimizer = optim.SGD(filter(lambda p:  p.requires_grad, net.parameters()), lr=0.0001,
+optimizer = optim.SGD(filter(lambda p:  p.requires_grad, net.parameters()), lr=0.001,
                       momentum=0.9, weight_decay=0.0001)
 exp_lr_scheduler = lr_scheduler.ReduceLROnPlateau(optimizer, patience=10, verbose=True)
-net = train_model(net, criterion1, criterion2, optimizer, exp_lr_scheduler, save_path, num_epochs=20, compare_Loss=True)
+net = train_model(net, criterion1, criterion2, optimizer, dataloaders2, exp_lr_scheduler, save_path, num_epochs=20, compare_Loss=True)

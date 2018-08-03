@@ -127,22 +127,6 @@ DOUBLE_UNET_CONFIG_6 = {
     'concat': 'input-discard_out1'
 }
 
-DOUBLE_UNET_CONFIG_7 = {
-    'unet1': {'in_channels': 3, 'out_channels': 3,
-              'down': [(64, 2), (128, 2), (256, 2), (512, 2)],
-              'base': [(512, 2)],
-              'up'  : [(256, 2), (128, 2), (64, 2), (64, 2)],
-              'up_method': 'bilinear'},
-    'unet2': {'out_channels': 1,
-              'down': [(64, 2), (128, 2), (256, 2), (512, 2)],
-              'base': [(512, 2)],
-              'up'  : [(256, 2), (128, 2), (64, 2), (64, 2)],
-              'up_method': 'bilinear'},
-    'concat': 'input',
-    'normalize': False,
-    'batch_norm': False
-}
-
 # ------------------ DOUBLE UNET 3D CONFIG ----------------------------
 DOUBLE_UNET_3D_CONFIG_1 = {
     'unet1': {'in_channels': 3, 'out_channels': 6,
@@ -220,4 +204,115 @@ TRIPLE_UNET_CONFIG_1 = {
               'up'  : [(256, 2), (128, 2), (64, 2), (64, 2)],
               'up_method': 'nearest'},
     'concat': 'input'
+}
+
+# ------------------ D UNET CONFIG ----------------------------
+D_UNET_CONFIG_1 = {
+    'unet1': {'in_channels': 3, 'out_channels': 3,
+              'down': [(64, 2), (128, 2), (256, 2), (512, 2)],
+              'base': [(512, 2)],
+              'up'  : [(256, 2), (128, 2), (64, 2), (64, 2)],
+              'up_method': 'bilinear'},
+    'unet2': {'out_channels': 1,
+              'down': [(64, 2), (128, 2), (256, 2), (512, 2)],
+              'base': [(512, 2)],
+              'up'  : [(256, 2), (128, 2), (64, 2), (64, 2)],
+              'up_method': 'bilinear'},
+    'concat': 'input'
+}
+
+D_UNET_CONFIG_2 = {
+    'unet1': {'in_channels': 3, 'out_channels': 3,
+              'down': [(64, 2), (128, 2), (256, 2), (512, 2)],
+              'base': [(512, 2)],
+              'up'  : [(256, 2), (128, 2), (64, 2), (64, 2)],
+              'up_method': 'bilinear'},
+    'unet2': {'out_channels': 1,
+              'down': [(64, 2), (128, 2), (256, 2), (512, 2)],
+              'base': [(512, 2)],
+              'up'  : [(256, 2), (128, 2), (64, 2), (64, 2)],
+              'up_method': 'bilinear'},
+    'concat': 'input-softmax_out1',
+    'masking': 'hard', 'mask_dim': 1
+}
+
+D_UNET_CONFIG_3 = {
+    'unet1': {'in_channels': 3, 'out_channels': 3,
+              'down': [(64, 2), (128, 2), (256, 2), (512, 2)],
+              'base': [(512, 2)],
+              'up'  : [(256, 2), (128, 2), (64, 2), (64, 2)],
+              'up_method': 'bilinear'},
+    'unet2': {'out_channels': 1,
+              'down': [(64, 2), (128, 2), (256, 2), (512, 2)],
+              'base': [(512, 2)],
+              'up'  : [(256, 2), (128, 2), (64, 2), (64, 2)],
+              'up_method': 'bilinear'},
+    'concat': 'input-discard_out1',
+    'masking': 'hard', 'mask_dim': 1
+}
+
+D_UNET_CONFIG_4 = {
+    'unet1': {'in_channels': 3, 'out_channels': 3,
+              'vgg': 16,
+              'pretrained': True},
+    'unet2': {'out_channels': 1,
+              'down': [(64, 2), (128, 2), (256, 2), (512, 2)],
+              'base': [(512, 2)],
+              'up'  : [(256, 2), (128, 2), (64, 2), (64, 2)],
+              'up_method': 'bilinear'},
+    'concat': 'input-discard_out1',
+    'masking': 'hard', 'mask_dim': 1
+}
+
+D_UNET_CONFIG_5 = {
+    'unet1': {'in_channels': 3, 'out_channels': 3,
+              'vgg': 16,
+              'pretrained': True},
+    'unet2': {'out_channels': 1,
+              'down': [(64, 2), (128, 2), (256, 2), (512, 2)],
+              'base': [(512, 2)],
+              'up'  : [(256, 2), (128, 2), (64, 2), (64, 2)],
+              'up_method': 'bilinear'},
+    'concat': 'input-discard_out1',
+    'masking': 'soft', 'mask_dim': 1
+}
+
+D_UNET_CONFIG_6 = {
+    'unet1': {'in_channels': 3, 'out_channels': 3,
+              'vgg': 16,
+              'pretrained': True},
+    'unet2': {'out_channels': 1,
+              'down': [(64, 2), (128, 2), (256, 2), (512, 2)],
+              'base': [(512, 2)],
+              'up'  : [(256, 2), (128, 2), (64, 2), (64, 2)],
+              'up_method': 'bilinear'},
+    'concat': 'input-softmax_out1',
+    'masking': 'soft', 'mask_dim': 1,
+    'batch_norm': True
+}
+
+D_UNET_CONFIG_7 = {
+    'unet1': {'in_channels': 3, 'out_channels': 3,
+              'vgg': 16,
+              'pretrained': True},
+    'unet2': {'out_channels': 1,
+              'vgg': 16,
+              'pretrained': True},
+    'concat': 'input-discard_out1',
+    'masking': 'soft', 'mask_dim': 1
+}
+
+D_UNET_CONFIG_8 = {
+    'unet1': {'in_channels': 3, 'out_channels': 3,
+              'down': [(64, 2), (128, 2), (256, 2), (512, 2)],
+              'base': [(512, 2)],
+              'up'  : [(256, 2), (128, 2), (64, 2), (64, 2)],
+              'up_method': 'bilinear'},
+    'unet2': {'out_channels': 1,
+              'down': [(64, 2), (128, 2), (256, 2), (512, 2)],
+              'base': [(512, 2)],
+              'up'  : [(256, 2), (128, 2), (64, 2), (64, 2)],
+              'up_method': 'bilinear'},
+    'concat': 'input-discard_out1',
+    'masking': 'soft', 'mask_dim': 1
 }

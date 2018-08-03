@@ -4,7 +4,7 @@ from utils import init
 from utils.metrics import aggregated_jaccard, dice_index
 from utils import helper
 from utils.prediction import predict
-from models.unet import DoubleUNet, DoubleWiredUNet, DoubleWiredUNet_3d, TripleUNet, TripleWiredUNet
+from models.unet import DoubleUNet, DoubleWiredUNet, DoubleWiredUNet_3d, TripleUNet, TripleWiredUNet, DUNet, DWiredUNet
 from skimage import segmentation as skseg
 import scipy.io as sio
 
@@ -40,7 +40,7 @@ def post_processing_randomwalk(pred, dilation=None):
 
 ########################### Predicting ##############################
 def do_prediction(net, output_path, test_ids, patch_size, stride, dilation, gate_image, masking,
-                  post_processing, visualize=False):
+                  post_processing, normalize_img, visualize=False):
     if not os.path.exists(output_path):
         os.makedirs(output_path)
         os.makedirs(os.path.join(output_path, LABELS_DIR))
@@ -73,8 +73,8 @@ def do_prediction(net, output_path, test_ids, patch_size, stride, dilation, gate
         if gate_image:
             img = img * np.repeat(gt_mask[:, :, np.newaxis], img.shape[-1], axis=2)
 
-        pred = predict(model, img, patch_size, patch_size, stride, stride) if not masking else \
-               predict(model, img, patch_size, patch_size, stride, stride, mask=gt_mask)
+        pred = predict(model, img, patch_size, patch_size, stride, stride, normalize_img=normalize_img) if not masking else \
+               predict(model, img, patch_size, patch_size, stride, stride, normalize_img=normalize_img, mask=gt_mask)
         pred_labels = post_processing(pred, dilation=dilation)
         num_labels = np.max(pred_labels)
         colored_labels = \
@@ -113,11 +113,11 @@ def do_prediction(net, output_path, test_ids, patch_size, stride, dilation, gate
 
 
 ########################### Config Predict ##############################
-net = DoubleWiredUNet(DOUBLE_UNET_CONFIG_7).cuda()
+net = DUNet(D_UNET_CONFIG_8).cuda()
 
-weight_path = os.path.join(WEIGHTS_DIR, 'test/dunet3_20_1e-04_1.2015.pth')
+weight_path = os.path.join(WEIGHTS_DIR, 'test/dunet3_18_1e-04_1.1852.pth')
 net.load_state_dict(torch.load(weight_path))
-output_path = os.path.join(OUTPUT_DIR, 'DWUNET16')
+output_path = os.path.join(OUTPUT_DIR, 'DWUNET20')
 
 do_prediction(net, output_path, TEST_IDS, patch_size=128, stride=32, dilation=1,
-              gate_image=False, masking=False, post_processing=post_processing_watershed)
+              gate_image=False, masking=False, post_processing=post_processing_watershed, normalize_img=True)

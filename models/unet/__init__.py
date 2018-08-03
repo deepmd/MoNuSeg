@@ -6,3 +6,5 @@ from .double_wired_unet_mask_model import DoubleWiredUNet_Mask
 from .double_wired_unet_3d_model import DoubleWiredUNet_3d
 from .triple_unet_model import TripleUNet
 from .triple_wired_unet_model import TripleWiredUNet
+from .d_unet_model import DUNet
+from .d_wired_unet_model import DWiredUNet
