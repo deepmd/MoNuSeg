@@ -5,6 +5,7 @@ from utils.metrics import aggregated_jaccard, dice_index
 from utils import helper
 from utils.prediction import predict
 from models.unet import DoubleUNet, DoubleWiredUNet, DoubleWiredUNet_3d, TripleUNet, TripleWiredUNet, DUNet, DWiredUNet
+from models.vgg_unet import VGG_DWired_UNet16
 from skimage import segmentation as skseg
 import scipy.io as sio
 
@@ -113,11 +114,11 @@ def do_prediction(net, output_path, test_ids, patch_size, stride, dilation, gate
 
 
 ########################### Config Predict ##############################
-net = DUNet(D_UNET_CONFIG_8).cuda()
+net = VGG_DWired_UNet16(D_UNET_CONFIG_7).cuda()
 
-weight_path = os.path.join(WEIGHTS_DIR, 'test/dunet3_18_1e-04_1.1852.pth')
+weight_path = os.path.join(WEIGHTS_DIR, 'test/dunet3_18_1e-04_1.1737.pth')
 net.load_state_dict(torch.load(weight_path))
-output_path = os.path.join(OUTPUT_DIR, 'DWUNET20')
+output_path = os.path.join(OUTPUT_DIR, 'DWUNET21')
 
 do_prediction(net, output_path, TEST_IDS, patch_size=128, stride=32, dilation=1,
               gate_image=False, masking=False, post_processing=post_processing_watershed, normalize_img=True)

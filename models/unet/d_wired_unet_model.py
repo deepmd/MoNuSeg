@@ -29,7 +29,7 @@ class DWiredUNet(DUNet):
         if self.masking is not None:
             out1 = F.softmax(output1, dim=1)
             mask = (out1.argmax(dim=1, keepdim=True) == self.mask_dim).float() if self.masking == 'hard' else \
-                   out1[:, self.mask_dim]
+                   torch.unsqueeze(out1[:, self.mask_dim], dim=1)
             mask = mask.repeat((1, inp.shape[1], 1, 1))
             inp = inp * mask
 

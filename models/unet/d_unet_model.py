@@ -13,11 +13,8 @@ class DUNet(nn.Module):
         self.mask_dim = config['mask_dim']
         self.batch_norm = config.get('batch_norm', False)
         config2['in_channels'] = config1['out_channels'] if self.concat != 'input-discard_out1' else 0
-        if self.concat == 'input' or self.concat == 'input-discard_out1':
+        if self.concat is not None and 'input' in self.concat:
             config2['in_channels'] += config1['in_channels']
-        elif self.concat == 'penultimate':
-            config1['penultimate_output'] = True
-            config2['in_channels'] += config1['up'][-1][0]
         self.unet1 = UNet(config1) if 'vgg' not in config1 else \
             (VGG_UNet11(num_classes=config1['out_channels'], pretrained=config1['pretrained']) if config1['vgg'] == 11 else \
              VGG_UNet16(num_classes=config1['out_channels'], pretrained=config1['pretrained']))

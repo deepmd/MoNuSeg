@@ -7,6 +7,7 @@ from utils.mo_dataset_d import MODatasetD
 from utils.metrics import criterion_BCE_SoftDice, dice_value, criterion_CCE_SoftDice, ce_dice_value, MetricMonitor
 from utils import augmentation
 from models.unet import DUNet, DWiredUNet
+from models.vgg_unet import VGG_DWired_UNet16
 
 init.set_results_reproducible()
 init.init_torch()
@@ -154,7 +155,7 @@ def train_model(model, criterion1, criterion2, optimizer, dataloaders, scheduler
 
 ########################### Config Train ##############################
 
-net = DUNet(D_UNET_CONFIG_8).cuda()
+net = VGG_DWired_UNet16(D_UNET_CONFIG_7).cuda()
 
 def criterion1(outputs, masks):
     return criterion_CCE_SoftDice(outputs, masks, dice_w=[0.1, 0.6, 0.3])
@@ -180,10 +181,10 @@ for param in net.unet1.parameters():
 for param in net.unet2.parameters():
     param.requires_grad = True
 save_path = os.path.join(WEIGHTS_DIR, 'test/dunet2_{:d}_{:.0e}_{:.4f}.pth')
-optimizer = optim.SGD(filter(lambda p:  p.requires_grad, net.parameters()), lr=0.001,
+optimizer = optim.SGD(filter(lambda p:  p.requires_grad, net.parameters()), lr=5e-3,
                       momentum=0.9, weight_decay=0.0001)
 exp_lr_scheduler = lr_scheduler.ReduceLROnPlateau(optimizer, patience=10, verbose=True)
-net = train_model(net, None, criterion2, optimizer, dataloaders2, exp_lr_scheduler, save_path, num_epochs=20, compare_Loss=True)
+net = train_model(net, None, criterion2, optimizer, dataloaders2, exp_lr_scheduler, save_path, num_epochs=40, compare_Loss=True)
 
 print('\n---------------- Fine-tuning entire net ----------------')
 for param in net.unet1.parameters():

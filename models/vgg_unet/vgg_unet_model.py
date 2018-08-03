@@ -56,7 +56,7 @@ class VGG_UNet11(nn.Module):
         self.final = nn.Conv2d(num_filters, num_classes, kernel_size=1)
 
     def forward(self, x):
-        if x.shape[1] > 3:
+        if x.shape[1] != 3:
             x = self.conv0(x)
         conv1 = self.conv1(x)
         conv2 = self.conv2(self.pool(conv1))
@@ -140,7 +140,7 @@ class VGG_UNet16(nn.Module):
         self.final = nn.Conv2d(num_filters, num_classes, kernel_size=1)
 
     def forward(self, x):
-        if x.shape[1] > 3:
+        if x.shape[1] != 3:
             x = self.conv0(x)
         conv1 = self.conv1(x)
         conv2 = self.conv2(self.pool(conv1))

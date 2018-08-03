@@ -5,7 +5,7 @@ OUTPUT_DIR = './outputs'
 IMAGES_DIR = 'Tissue images'
 ANNOTATIONS_DIR = 'Annotations'
 
-MASKS_DIR = 'Masks/GT_Masks'
+MASKS_DIR = 'Masks'
 PRED_MASKS_DIR = 'Masks/Predicted_Masks'
 INSIDE_MASKS_DIR = 'Masks/Inside'
 BOUNDARY_MASKS_DIR = 'Masks/Boundary'
