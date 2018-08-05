@@ -155,7 +155,7 @@ def train_model(model, criterion1, criterion2, optimizer, dataloaders, scheduler
 
 ########################### Config Train ##############################
 
-net = VGG_DWired_UNet16(D_UNET_CONFIG_7).cuda()
+net = DWiredUNet(D_UNET_CONFIG_9).cuda()
 
 def criterion1(outputs, masks):
     return criterion_CCE_SoftDice(outputs, masks, dice_w=[0.1, 0.6, 0.3])
@@ -170,7 +170,7 @@ print('\n---------------- Training first unet ----------------')
 for param in net.unet2.parameters():
     param.requires_grad = False
 save_path = os.path.join(WEIGHTS_DIR, 'test/dunet1_{:d}_{:.0e}_{:.4f}.pth')
-optimizer = optim.SGD(filter(lambda p:  p.requires_grad, net.parameters()), lr=5e-3,
+optimizer = optim.SGD(filter(lambda p:  p.requires_grad, net.parameters()), lr=0.001,
                       momentum=0.9, weight_decay=0.0001)
 exp_lr_scheduler = lr_scheduler.ReduceLROnPlateau(optimizer, patience=10, verbose=True)
 net = train_model(net, criterion1, None, optimizer, dataloaders1, exp_lr_scheduler, save_path, num_epochs=40, compare_Loss=True)
@@ -181,7 +181,7 @@ for param in net.unet1.parameters():
 for param in net.unet2.parameters():
     param.requires_grad = True
 save_path = os.path.join(WEIGHTS_DIR, 'test/dunet2_{:d}_{:.0e}_{:.4f}.pth')
-optimizer = optim.SGD(filter(lambda p:  p.requires_grad, net.parameters()), lr=5e-3,
+optimizer = optim.SGD(filter(lambda p:  p.requires_grad, net.parameters()), lr=0.001,
                       momentum=0.9, weight_decay=0.0001)
 exp_lr_scheduler = lr_scheduler.ReduceLROnPlateau(optimizer, patience=10, verbose=True)
 net = train_model(net, None, criterion2, optimizer, dataloaders2, exp_lr_scheduler, save_path, num_epochs=40, compare_Loss=True)

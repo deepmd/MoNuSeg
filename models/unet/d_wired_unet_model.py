@@ -1,6 +1,7 @@
 from .unet_parts import *
 from .d_unet_model import DUNet
 from .wired_unet_model import WiredUNet
+from .wired_unet_dense_model import DenseWiredUNet
 
 
 class DWiredUNet(DUNet):
@@ -8,7 +9,8 @@ class DWiredUNet(DUNet):
         super(DWiredUNet, self).__init__(config)
         if len(config['unet1']['down']) != len(config['unet2']['down']):
             raise ValueError('Length of \'down\' of both UNets should be the same.')
-        self.unet2 = WiredUNet(config['unet2'], config['unet1'])
+        self.unet2 = WiredUNet(config['unet2'], config['unet1']) if not config.get('dense', False) else \
+                     DenseWiredUNet(config['unet2'], config['unet1'])
         self.bn = nn.BatchNorm2d(config['unet2']['in_channels'])
 
     def forward(self, x):
