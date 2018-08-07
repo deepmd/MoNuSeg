@@ -155,7 +155,7 @@ def train_model(model, criterion1, criterion2, optimizer, dataloaders, scheduler
 
 ########################### Config Train ##############################
 
-net = DWiredUNet(D_UNET_CONFIG_9).cuda()
+net = DUNet(D_UNET_CONFIG_11).cuda()
 
 def criterion1(outputs, masks):
     return criterion_CCE_SoftDice(outputs, masks, dice_w=[0.1, 0.6, 0.3])

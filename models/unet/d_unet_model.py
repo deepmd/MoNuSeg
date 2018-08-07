@@ -1,6 +1,7 @@
 from .unet_parts import *
 from ..unet import UNet
 from ..vgg_unet import VGG_UNet11, VGG_UNet16
+from ..res_unet import Res_UNet
 
 
 class DUNet(nn.Module):
@@ -15,12 +16,20 @@ class DUNet(nn.Module):
         config2['in_channels'] = config1['out_channels'] if self.concat != 'input-discard_out1' else 0
         if self.concat is not None and 'input' in self.concat:
             config2['in_channels'] += config1['in_channels']
-        self.unet1 = UNet(config1) if 'vgg' not in config1 else \
-            (VGG_UNet11(num_classes=config1['out_channels'], pretrained=config1['pretrained']) if config1['vgg'] == 11 else \
-             VGG_UNet16(num_classes=config1['out_channels'], pretrained=config1['pretrained']))
-        self.unet2 = UNet(config2) if 'vgg' not in config2 else \
-            (VGG_UNet11(num_classes=config2['out_channels'], pretrained=config2['pretrained']) if config2['vgg'] == 11 else \
-             VGG_UNet16(num_classes=config2['out_channels'], pretrained=config2['pretrained']))
+        if 'vgg' in config1:
+            self.unet1 = VGG_UNet11(num_classes=config1['out_channels'], pretrained=config1['pretrained']) if config1['vgg'] == 11 else \
+                         VGG_UNet16(num_classes=config1['out_channels'], pretrained=config1['pretrained'])
+        elif 'resnet' in config1:
+            self.unet1 = Res_UNet(config1['resnet'], out_channels=config1['out_channels'], pretrained=config1['pretrained'])
+        else:
+            self.unet1 = UNet(config1)
+        if 'vgg' in config2:
+            self.unet2 = VGG_UNet11(num_classes=config2['out_channels'], pretrained=config2['pretrained']) if config2['vgg'] == 11 else \
+                         VGG_UNet16(num_classes=config2['out_channels'], pretrained=config2['pretrained'])
+        elif 'resnet' in config2:
+            self.unet2 = Res_UNet(config2['resnet'], out_channels=config2['out_channels'], pretrained=config2['pretrained'])
+        else:
+            self.unet2 = UNet(config2)
         self.bn = nn.BatchNorm2d(config['unet2']['in_channels'])
 
     def forward(self, x):

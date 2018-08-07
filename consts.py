@@ -336,3 +336,27 @@ D_UNET_CONFIG_9 = {
     'masking': 'soft', 'mask_dim': 1,
     'dense': True
 }
+
+D_UNET_CONFIG_10 = {
+    'unet1': {'in_channels': 3, 'out_channels': 3,
+              'resnet': 101,
+              'pretrained': True},
+    'unet2': {'out_channels': 1,
+              'down': [(64, 2), (128, 2), (256, 2), (512, 2)],
+              'base': [(512, 2)],
+              'up'  : [(256, 2), (128, 2), (64, 2), (64, 2)],
+              'up_method': 'bilinear'},
+    'concat': 'input-discard_out1',
+    'masking': 'soft', 'mask_dim': 1
+}
+
+D_UNET_CONFIG_11 = {
+    'unet1': {'in_channels': 3, 'out_channels': 3,
+              'resnet': 101,
+              'pretrained': True},
+    'unet2': {'out_channels': 1,
+              'resnet': 101,
+              'pretrained': True},
+    'concat': 'input-discard_out1',
+    'masking': 'soft', 'mask_dim': 1
+}
