@@ -104,7 +104,7 @@ def train_model(model, criterion, optimizer, scheduler=None, save_path=None, num
             epoch_dice = monitor.get_avg('dice')
 
             if phase == 'valid' and scheduler is not None:
-                scheduler.step(epoch_dice)
+                scheduler.step(-epoch_dice)
             
             # deep copy the model
             if (phase == 'valid') and (epoch_dice > best_dice):
@@ -148,7 +148,7 @@ optimizer = optim.SGD(filter(lambda p:  p.requires_grad, net.parameters()), lr=0
                       momentum=0.9, weight_decay=0.0001)
 
 # exp_lr_scheduler = lr_scheduler.StepLR(optimizer, step_size=50, gamma=0.1)
-exp_lr_scheduler = lr_scheduler.ReduceLROnPlateau(optimizer, patience=15, verbose=True)
+exp_lr_scheduler = lr_scheduler.ReduceLROnPlateau(optimizer, patience=10, verbose=True)
 
 save_path = os.path.join(WEIGHTS_DIR, 'UNETRESNET', 'res-unet-{:.4f}.pth')
 net = train_model(net, criterion, optimizer, exp_lr_scheduler, save_path, num_epochs=40)

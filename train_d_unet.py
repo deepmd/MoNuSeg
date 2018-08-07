@@ -3,10 +3,11 @@ from sklearn.model_selection import train_test_split
 from common import *
 from consts import *
 from utils import init
-from utils.mo_dataset_double import MODatasetDouble
-from utils.metrics import criterion_BCE_SoftDice, criterion_AngularError, criterion_MSELoss, dice_value, MetricMonitor
+from utils.mo_dataset_d import MODatasetD
+from utils.metrics import criterion_BCE_SoftDice, dice_value, criterion_CCE_SoftDice, ce_dice_value, MetricMonitor
 from utils import augmentation
-from models.unet import TripleUNet, TripleWiredUNet
+from models.unet import DUNet, DWiredUNet
+from models.vgg_unet import VGG_DWired_UNet16
 
 init.set_results_reproducible()
 init.init_torch()
@@ -14,27 +15,30 @@ init.init_torch()
 
 ############################# Load Data ##################################
 def train_transforms(image, mask, labels):
-    seq = augmentation.get_train_augmenters_seq1()
+    seq = augmentation.get_train_augmenters_seq2(mode='constant')
     hooks_masks = augmentation.get_train_masks_augmenters_deactivator()
 
     # Convert the stochastic sequence of augmenters to a deterministic one.
     # The deterministic sequence will always apply the exactly same effects to the images.
     seq_det = seq.to_deterministic()  # call this for each batch again, NOT only once at the start
     image_aug = seq_det.augment_images([image])[0]
-    mask_aug = seq_det.augment_images([mask], hooks=hooks_masks)[0]
-    labels_aug = seq_det.augment_images([labels], hooks=hooks_masks)[0]
+    image_aug_tensor = transforms.ToTensor()(image_aug.copy())
+    image_aug_tensor = transforms.Normalize(IMAGES_MEAN, IMAGES_STD)(image_aug_tensor)
 
+    mask_aug = seq_det.augment_images([mask], hooks=hooks_masks)[0]
     mask_aug = (mask_aug >= MASK_THRESHOLD).astype(np.uint8)
+
+    labels_aug = seq_det.augment_images([labels], hooks=hooks_masks)[0]
     for index in range(labels_aug.shape[-1]):
         labels_aug[..., index] = (labels_aug[..., index] > 0).astype(np.uint8)
-
-    image_aug_tensor = transforms.ToTensor()(image_aug.copy())
 
     return image_aug_tensor, mask_aug, labels_aug
 
 
 def valid_transforms(image, mask, labels):
     img_tensor = transforms.ToTensor()(image.copy())
+    img_tensor = transforms.Normalize(IMAGES_MEAN, IMAGES_STD)(img_tensor)
+
     return img_tensor, mask, labels
 
 
@@ -45,26 +49,36 @@ ids_train, ids_valid = train_test_split(train_ids, test_size=0.2, random_state=4
 # ids_train = [i for i in all_ids if i not in TEST_IDS]
 # ids_valid = TEST_IDS
 ids = {'train': ids_train, 'valid': ids_valid}
-datasets = {x: MODatasetDouble(INPUT_DIR,
-                               ids[x],
-                               num_patches=100,
-                               patch_size=128,
-                               transform=trans[x],
-                               erosion=1,
-                               gate_image=False)
-           for x in ['train', 'valid']}
-dataloaders = {x: torch.utils.data.DataLoader(datasets[x],
-                                              batch_size=4,
-                                              shuffle=True, 
-                                              num_workers=8,
-                                              pin_memory=True)
-              for x in ['train', 'valid']}
-dataset_sizes = {x: len(datasets[x]) for x in ['train', 'valid']}
+datasets1 = {x: MODatasetD(INPUT_DIR,
+                           ids[x],
+                           num_patches=100,
+                           patch_size=128,
+                           transform=trans[x],
+                           zero_centroids=True)
+             for x in ['train', 'valid']}
+dataloaders1 = {x: torch.utils.data.DataLoader(datasets1[x],
+                                               batch_size=4,
+                                               shuffle=True,
+                                               num_workers=8,
+                                               pin_memory=True)
+                for x in ['train', 'valid']}
+datasets2 = {x: MODatasetD(INPUT_DIR,
+                           ids[x],
+                           num_patches=100,
+                           patch_size=128,
+                           transform=trans[x])
+             for x in ['train', 'valid']}
+dataloaders2 = {x: torch.utils.data.DataLoader(datasets2[x],
+                                               batch_size=4,
+                                               shuffle=True,
+                                               num_workers=8,
+                                               pin_memory=True)
+                for x in ['train', 'valid']}
 
 
 ############################# Training the model ##################################
-def train_model(model, criterion1, criterion2, criterion3, optimizer, scheduler=None, save_path=None,
-                num_epochs=25, iter_size=1, compare='loss'):
+def train_model(model, criterion1, criterion2, optimizer, dataloaders, scheduler=None, save_path=None,
+                num_epochs=25, iter_size=1, compare_Loss=False):
     since = time.time()
     
     best_model_wts = copy.deepcopy(model.state_dict())
@@ -83,16 +97,14 @@ def train_model(model, criterion1, criterion2, criterion3, optimizer, scheduler=
                 # get the inputs
                 inputs = torch.tensor(samples['image'], requires_grad=True).cuda(async=True)
                 # get the targets
-                vectors = torch.tensor(samples['vectors'], dtype=torch.float).cuda(async=True)
-                masks = torch.tensor(samples['masks'], dtype=torch.float).cuda(async=True)
-                areas = torch.tensor(samples['areas'], dtype=torch.float).cuda(async=True)
+                masks = torch.tensor(samples['masks'], dtype=torch.long).cuda(async=True)
+                centroids = torch.tensor(samples['centroids'], dtype=torch.float).cuda(async=True)
 
                 # forward
-                outputs1, outputs2, outputs3 = model(inputs)
-                loss1 = criterion1(inputs, outputs1, vectors, masks, areas) if criterion1 is not None else 0
-                loss2 = criterion2(inputs, outputs2, vectors, masks, areas) if criterion2 is not None else 0
-                loss3 = criterion3(inputs, outputs3, vectors, masks, areas) if criterion3 is not None else 0
-                loss = loss1 + loss2 + loss3
+                outputs1, outputs2 = model(inputs)
+                loss1 = criterion1(outputs1, masks) if criterion1 is not None else 0
+                loss2 = criterion2(outputs2, centroids) if criterion2 is not None else 0
+                loss = loss1 + loss2
 
                 # backward + optimize only if in training phase
                 if phase == 'train':
@@ -102,19 +114,20 @@ def train_model(model, criterion1, criterion2, criterion3, optimizer, scheduler=
                         optimizer.zero_grad()
 
                 # statistics
-                dice1 = dice_value(outputs1.data, torch.unsqueeze(masks[:, 0], 1).data)
-                dice3 = dice_value(outputs3.data, masks.data)
+                dice1 = ce_dice_value(outputs1.data, masks.data, [0, 1, 0])
+                dice2 = dice_value(outputs2.data, centroids.data)
                 monitor.update('loss', loss.data, inputs.shape[0])
                 monitor.update('dice1', dice1.data, inputs.shape[0])
-                monitor.update('dice3', dice3.data, inputs.shape[0])
+                monitor.update('dice2', dice2.data, inputs.shape[0])
                 stream.set_description(
                     f'epoch {epoch+1}/{num_epochs} | '
                     f'{phase}: {monitor}'
                 )
             stream.close()
 
-            epoch_val = monitor.get_avg('dice1') if compare == 'dice1' else \
-                       (monitor.get_avg('dice3') if compare == 'dice3' else -monitor.get_avg('loss'))
+            epoch_loss = monitor.get_avg('loss')
+            epoch_dice = monitor.get_avg('dice2')
+            epoch_val = epoch_dice if not compare_Loss else -epoch_loss
 
             if phase == 'valid' and scheduler is not None:
                 scheduler.step(-epoch_val)
@@ -142,69 +155,42 @@ def train_model(model, criterion1, criterion2, criterion3, optimizer, scheduler=
 
 ########################### Config Train ##############################
 
-net = TripleWiredUNet(TRIPLE_UNET_CONFIG_1).cuda()
+net = DUNet(D_UNET_CONFIG_11).cuda()
 
-def criterion1(inputs, outputs, vectors, masks, areas):
-    return criterion_BCE_SoftDice(outputs, torch.unsqueeze(masks[:, 0], 1))
+def criterion1(outputs, masks):
+    return criterion_CCE_SoftDice(outputs, masks, dice_w=[0.1, 0.6, 0.3])
 
-def criterion2(inputs, outputs, vectors, masks, areas):
-    return criterion_AngularError(outputs, vectors, areas)
-    # return criterion_MSELoss(outputs, vectors)
-
-def criterion3(inputs, outputs, vectors, masks, areas):
-    return criterion_BCE_SoftDice(outputs, masks, dice_w=[0.3, 0.7])
+def criterion2(outputs, centroids):
+    return criterion_BCE_SoftDice(outputs, centroids)
 
 
-# weight_path = os.path.join(WEIGHTS_DIR, 'final/dwunet1_20_1e-04_10.6428.pth')
+# weight_path = os.path.join(WEIGHTS_DIR, 'test/dunet2_37_1e-03_0.5916.pth')
 # net.load_state_dict(torch.load(weight_path))
 print('\n---------------- Training first unet ----------------')
-for param in net.unet1.parameters():
-    param.requires_grad = True
 for param in net.unet2.parameters():
     param.requires_grad = False
-for param in net.unet3.parameters():
-    param.requires_grad = False
-save_path = os.path.join(WEIGHTS_DIR, 'test/tunet1_{:d}_{:.0e}_{:.4f}.pth')
+save_path = os.path.join(WEIGHTS_DIR, 'test/dunet1_{:d}_{:.0e}_{:.4f}.pth')
 optimizer = optim.SGD(filter(lambda p:  p.requires_grad, net.parameters()), lr=0.001,
                       momentum=0.9, weight_decay=0.0001)
 exp_lr_scheduler = lr_scheduler.ReduceLROnPlateau(optimizer, patience=10, verbose=True)
-net = train_model(net, criterion1, None, None, optimizer, exp_lr_scheduler, save_path, num_epochs=30)
+net = train_model(net, criterion1, None, optimizer, dataloaders1, exp_lr_scheduler, save_path, num_epochs=40, compare_Loss=True)
 
 print('\n---------------- Training second unet ----------------')
 for param in net.unet1.parameters():
     param.requires_grad = False
 for param in net.unet2.parameters():
     param.requires_grad = True
-for param in net.unet3.parameters():
-    param.requires_grad = False
-save_path = os.path.join(WEIGHTS_DIR, 'test/tunet2_{:d}_{:.0e}_{:.4f}.pth')
+save_path = os.path.join(WEIGHTS_DIR, 'test/dunet2_{:d}_{:.0e}_{:.4f}.pth')
 optimizer = optim.SGD(filter(lambda p:  p.requires_grad, net.parameters()), lr=0.001,
                       momentum=0.9, weight_decay=0.0001)
 exp_lr_scheduler = lr_scheduler.ReduceLROnPlateau(optimizer, patience=10, verbose=True)
-net = train_model(net, None, criterion2, None, optimizer, exp_lr_scheduler, save_path, num_epochs=10)
-
-print('\n---------------- Training third unet ----------------')
-for param in net.unet1.parameters():
-    param.requires_grad = False
-for param in net.unet2.parameters():
-    param.requires_grad = False
-for param in net.unet3.parameters():
-    param.requires_grad = True
-save_path = os.path.join(WEIGHTS_DIR, 'test/tunet3_{:d}_{:.0e}_{:.4f}.pth')
-optimizer = optim.SGD(filter(lambda p:  p.requires_grad, net.parameters()), lr=0.001,
-                      momentum=0.9, weight_decay=0.0001)
-exp_lr_scheduler = lr_scheduler.ReduceLROnPlateau(optimizer, patience=10, verbose=True)
-net = train_model(net, None, criterion2, None, optimizer, exp_lr_scheduler, save_path, num_epochs=10)
+net = train_model(net, None, criterion2, optimizer, dataloaders2, exp_lr_scheduler, save_path, num_epochs=40, compare_Loss=True)
 
 print('\n---------------- Fine-tuning entire net ----------------')
 for param in net.unet1.parameters():
     param.requires_grad = True
-for param in net.unet2.parameters():
-    param.requires_grad = True
-for param in net.unet3.parameters():
-    param.requires_grad = True
-save_path = os.path.join(WEIGHTS_DIR, 'test/tunet_all_{:d}_{:.0e}_{:.4f}.pth')
+save_path = os.path.join(WEIGHTS_DIR, 'test/dunet3_{:d}_{:.0e}_{:.4f}.pth')
 optimizer = optim.SGD(filter(lambda p:  p.requires_grad, net.parameters()), lr=0.001,
                       momentum=0.9, weight_decay=0.0001)
 exp_lr_scheduler = lr_scheduler.ReduceLROnPlateau(optimizer, patience=10, verbose=True)
-net = train_model(net, criterion1, criterion2, criterion3, optimizer, exp_lr_scheduler, save_path, num_epochs=20)
+net = train_model(net, criterion1, criterion2, optimizer, dataloaders2, exp_lr_scheduler, save_path, num_epochs=20, compare_Loss=True)

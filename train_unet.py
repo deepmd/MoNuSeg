@@ -106,7 +106,7 @@ def train_model(model, criterion, optimizer, scheduler=None, save_path=None, num
             epoch_dice = monitor.get_avg('dice')
 
             if phase == 'valid' and scheduler is not None:
-                scheduler.step(epoch_dice)
+                scheduler.step(-epoch_dice)
             
             # deep copy the model
             if (phase == 'valid') and (epoch_dice > best_dice):

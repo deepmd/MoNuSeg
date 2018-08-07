@@ -4,7 +4,7 @@ from torchvision import models
 
 # Transfer Learning ResNet as Encoder part of UNet
 class Res_UNet(nn.Module):
-    def __init__(self, layers=34, out_channels=1):
+    def __init__(self, layers=34, out_channels=1, pretrained=True):
         super().__init__()
         # define pre-train model parameters
         if layers == 101:
@@ -14,7 +14,7 @@ class Res_UNet(nn.Module):
             builder = models.resnet34
             l = [64, 64, 128, 256, 512]
         # load weight of pre-trained resnet
-        self.resnet = builder(pretrained=True)
+        self.resnet = builder(pretrained=pretrained)
         # up conv
         self.u5 = ConvUpBlock(l[4], l[3])
         self.u6 = ConvUpBlock(l[3], l[2])

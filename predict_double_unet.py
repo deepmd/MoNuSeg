@@ -4,7 +4,8 @@ from utils import init
 from utils.metrics import aggregated_jaccard, dice_index
 from utils import helper
 from utils.prediction import predict
-from models.unet import DoubleUNet, DoubleWiredUNet, DoubleWiredUNet_3d, TripleUNet, TripleWiredUNet
+from models.unet import DoubleUNet, DoubleWiredUNet, DoubleWiredUNet_3d, TripleUNet, TripleWiredUNet, DUNet, DWiredUNet
+from models.vgg_unet import VGG_DWired_UNet16
 from skimage import segmentation as skseg
 import scipy.io as sio
 
@@ -40,17 +41,24 @@ def post_processing_randomwalk(pred, dilation=None):
 
 ########################### Predicting ##############################
 def do_prediction(net, output_path, test_ids, patch_size, stride, dilation, gate_image, masking,
-                  post_processing, visualize=False):
+                  post_processing, normalize_img, visualize=False):
     if not os.path.exists(output_path):
         os.makedirs(output_path)
         os.makedirs(os.path.join(output_path, LABELS_DIR))
 
-    def model(img, mask=None):
-        if masking:
-            outputs = net(img, mask)
-        else:
-            outputs = net(img)
-        return F.sigmoid(outputs[-1])
+    # def model(img, mask=None):
+    #     if masking:
+    #         outputs = net(img, mask)
+    #     else:
+    #         outputs = net(img)
+    #     return F.sigmoid(outputs[-1])
+
+    def model(img):
+        outputs1, outputs2 = net(img)
+        pred = F.log_softmax(outputs1, dim=1)
+        inside_mask = (pred.argmax(dim=1, keepdim=True) == 1).float()
+        centroids = F.sigmoid(outputs2)
+        return torch.cat((inside_mask, centroids), 1)
 
     sum_agg_jac = 0
     sum_dice = 0
@@ -66,8 +74,8 @@ def do_prediction(net, output_path, test_ids, patch_size, stride, dilation, gate
         if gate_image:
             img = img * np.repeat(gt_mask[:, :, np.newaxis], img.shape[-1], axis=2)
 
-        pred = predict(model, img, patch_size, patch_size, stride, stride) if not masking else \
-               predict(model, img, patch_size, patch_size, stride, stride, mask=gt_mask)
+        pred = predict(model, img, patch_size, patch_size, stride, stride, normalize_img=normalize_img) if not masking else \
+               predict(model, img, patch_size, patch_size, stride, stride, normalize_img=normalize_img, mask=gt_mask)
         pred_labels = post_processing(pred, dilation=dilation)
         num_labels = np.max(pred_labels)
         colored_labels = \
@@ -106,11 +114,11 @@ def do_prediction(net, output_path, test_ids, patch_size, stride, dilation, gate
 
 
 ########################### Config Predict ##############################
-net = DoubleWiredUNet(DOUBLE_UNET_CONFIG_1).cuda()
+net = DUNet(D_UNET_CONFIG_11).cuda()
 
-weight_path = os.path.join(WEIGHTS_DIR, 'dwunet3_20_1e-04_0.2303.pth')
+weight_path = os.path.join(WEIGHTS_DIR, 'test/dunet3_16_1e-03_1.1976.pth')
 net.load_state_dict(torch.load(weight_path))
-output_path = os.path.join(OUTPUT_DIR, 'DWUNET15')
+output_path = os.path.join(OUTPUT_DIR, 'DWUNET22')
 
 do_prediction(net, output_path, TEST_IDS, patch_size=128, stride=32, dilation=1,
-              gate_image=True, masking=True, post_processing=post_processing_watershed)
+              gate_image=False, masking=False, post_processing=post_processing_watershed, normalize_img=True)

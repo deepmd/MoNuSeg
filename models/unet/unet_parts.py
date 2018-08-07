@@ -82,10 +82,10 @@ class outconv(nn.Module):
 
 
 class down_merge(nn.Module):
-    def __init__(self, in_ch1, in_ch2, out_ch, n, add_se=False):
+    def __init__(self, in_ch1, in_ch2, out_ch, n, add_se=False, dense=False):
         super(down_merge, self).__init__()
         self.conv = conv(in_ch1, out_ch, n)
-        self.bottleneck = bottleneck(out_ch + in_ch2, out_ch)
+        self.bottleneck = bottleneck(out_ch + in_ch2, out_ch) if not dense else (lambda x: x)
         self.down = nn.MaxPool2d(2)
         self.se = scSE_block(out_ch, 2) if add_se else (lambda x: x)
 
