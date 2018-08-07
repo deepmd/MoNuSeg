@@ -11,7 +11,7 @@ def sometimes(aug):
     return iaa.Sometimes(0.5, aug)
 
 
-def get_train_augmenters_seq1():
+def get_train_augmenters_seq1(mode='constant'):
     # Define our sequence of augmentation steps that will be applied to every image.
     seq = iaa.Sequential(
         [
@@ -39,8 +39,7 @@ def get_train_augmenters_seq1():
                 shear=(-16, 16),
                 order=[0, 1],
                 cval=0,
-                mode='constant'
-                # mode='edge'
+                mode=mode
             )),
 
             # In some images distort local areas with varying strength.
@@ -48,8 +47,7 @@ def get_train_augmenters_seq1():
                 scale=(0.01, 0.1),
                 order=[0, 1],
                 cval=0,
-                mode='constant'
-                # mode='edge'
+                mode=mode
             )),
 
             # Execute 0 to 2 of the following (less important) augmenters per
@@ -156,7 +154,7 @@ def get_train_augmenters_seq2(mode='reflect'):
     return seq
 
 
-def get_train_augmenters_seq3():
+def get_train_augmenters_seq3(mode='reflect'):
     # Define our sequence of augmentation steps that will be applied to every image.
     seq = iaa.Sequential(
         [
@@ -187,7 +185,7 @@ def get_train_augmenters_seq3():
                 shear=(-16, 16),
                 order=[0, 1],
                 cval=(0, 255),
-                mode='reflect'
+                mode=mode
             )),
 
             # In some images move pixels locally around (with random
@@ -200,7 +198,7 @@ def get_train_augmenters_seq3():
                 scale=(0.01, 0.1),
                 order=[0, 1],
                 cval=0,
-                mode='reflect'
+                mode=mode
             )),
 
             # Execute 0 to 5 of the following (less important) augmenters per

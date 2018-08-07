@@ -25,8 +25,9 @@ def criterion_BCE_SoftDice(input, target, weight=None, dice_w=None):
     return loss
 
 
-def criterion_CCE_SoftDice(input, target, weight=None, dice_w=None):
-    loss = F.cross_entropy(input, torch.squeeze(target)) + \
+def criterion_CCE_SoftDice(input, target, weight=None, dice_w=None, ce_w=None):
+    ce_w = torch.FloatTensor(ce_w).cuda() if ce_w is not None else None
+    loss = F.cross_entropy(input, torch.squeeze(target), weight=ce_w) + \
            ce_dice_loss_with_logits(input, target, weight, dice_w)
     return loss
 

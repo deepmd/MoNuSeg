@@ -10,12 +10,13 @@ class MODatasetD(Dataset):
     """Multi Organ Dataset for Double UNet"""
 
     def __init__(self, root_dir, ids, num_patches=None, patch_size=None, transform=None, bgr=False,
-                 masks=['inside', 'touching'], numeric_mask=True, zero_centroids=False):
+                 masks=['inside', 'touching'], numeric_mask=True, centroid_size=5, zero_centroids=False):
         self.ids = ids
         self.transform = transform
         self.req_masks = masks
         self.numeric_mask = numeric_mask
         self.zero_centroids = zero_centroids
+        self.centroid_size = centroid_size
         self.patch_coords = None
         if num_patches is not None and patch_size is not None:
             self.ids = np.random.permutation(np.repeat(ids, num_patches))
@@ -102,7 +103,7 @@ class MODatasetD(Dataset):
         if self.zero_centroids:
             centroids = np.zeros((1, img.shape[1], img.shape[2]))
         else:
-            centroids = helper.get_centroids(labels, centroid_size=5)
+            centroids = helper.get_centroids(labels, centroid_size=self.centroid_size)
             centroids = np.expand_dims(centroids, axis=0)
 
         sample = {'image': img, 'masks': masks, 'centroids': centroids}
