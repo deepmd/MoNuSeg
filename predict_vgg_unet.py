@@ -4,7 +4,7 @@ from utils import init
 from utils.metrics import aggregated_jaccard, dice_index
 from utils import helper
 from utils.prediction import predict
-from models.vgg_unet import VGG_UNet16
+from models.vgg_unet import VGG_UNet16, VGG_Holistic_UNet16
 from scipy.ndimage import morphology
 import scipy.io as sio
 
@@ -37,7 +37,10 @@ def do_prediction(net, output_path, test_ids, patch_size, stride, post_processin
         os.makedirs(os.path.join(output_path, LABELS_DIR))
 
     def model(img):
+        # _,_,_,_,_,outputs = net(img)
         outputs = net(img)
+        # outputs = torch.cat(outputs, dim=0)
+        # outputs = torch.mean(outputs, dim=0, keepdim=True)
         pred = F.softmax(outputs, dim=1)
         return pred
 
@@ -89,7 +92,7 @@ def do_prediction(net, output_path, test_ids, patch_size, stride, post_processin
 ########################### Config Predict ##############################
 net = VGG_UNet16(num_classes=4, pretrained=False).cuda()
 
-weight_path = os.path.join(WEIGHTS_DIR, 'test-2/unet-0.6580.pth')
+weight_path = os.path.join(WEIGHTS_DIR, 'test1/unet_31_0.6692.pth')
 net.load_state_dict(torch.load(weight_path))
 output_path = os.path.join(OUTPUT_DIR, 'VGG16')
 

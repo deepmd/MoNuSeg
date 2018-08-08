@@ -63,6 +63,7 @@ class VGG_UNet11(nn.Module):
         conv3 = self.conv3(self.pool(conv2))
         conv4 = self.conv4(self.pool(conv3))
         conv5 = self.conv5(self.pool(conv4))
+
         center = self.center(self.pool(conv5))
 
         dec5 = self.dec5(torch.cat([center, conv5], 1))
@@ -151,7 +152,6 @@ class VGG_UNet16(nn.Module):
         center = self.center(self.pool(conv5))
 
         dec5 = self.dec5(torch.cat([center, conv5], 1))
-
         dec4 = self.dec4(torch.cat([dec5, conv4], 1))
         dec3 = self.dec3(torch.cat([dec4, conv3], 1))
         dec2 = self.dec2(torch.cat([dec3, conv2], 1))

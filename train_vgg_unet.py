@@ -6,7 +6,7 @@ from utils import init
 from utils.mo_dataset_d import MODatasetD
 from utils.metrics import criterion_CCE_SoftDice, ce_dice_value, MetricMonitor
 from utils import augmentation
-from models.vgg_unet import VGG_UNet16
+from models.vgg_unet import VGG_UNet16, VGG_Holistic_UNet16
 
 init.set_results_reproducible()
 init.init_torch()
@@ -99,6 +99,15 @@ def train_model(model, criterion, optimizer, scheduler=None, model_save_path=Non
                 outputs = model(inputs)
                 loss = criterion(outputs, targets)
 
+                # out5,out4,out3,out2,out1,out_fuse = model(inputs)
+                # loss5 = criterion(out5, targets)
+                # loss4 = criterion(out4, targets)
+                # loss3 = criterion(out3, targets)
+                # loss2 = criterion(out2, targets)
+                # loss1 = criterion(out1, targets)
+                # loss_fuse = criterion(out_fuse, targets)
+                # loss = loss5 + loss4 + loss3 + loss2 + loss1 + loss_fuse
+
                 # backward + optimize only if in training phase
                 if phase == 'train':
                     loss.backward()
@@ -171,8 +180,8 @@ optimizer = optim.SGD(filter(lambda p:  p.requires_grad, net.parameters()), lr=5
 exp_lr_scheduler = lr_scheduler.ReduceLROnPlateau(optimizer, patience=10, verbose=True)
 
 model_save_path = os.path.join(WEIGHTS_DIR, 'test/unet_{:d}_{:.4f}.pth')
-optim_save_path = None #os.path.join(WEIGHTS_DIR, 'test/optim.pth')
-log_save_path = None #os.path.join(WEIGHTS_DIR, 'test/log.txt')
+optim_save_path = os.path.join(WEIGHTS_DIR, 'test/optim.pth')
+log_save_path = os.path.join(WEIGHTS_DIR, 'test/log.txt')
 net = train_model(net, criterion, optimizer, exp_lr_scheduler, model_save_path, optim_save_path,
                   log_save_path, num_epochs=40)
 

@@ -41,7 +41,6 @@ class VGG_DWired_UNet16(nn.Module):
         center_1 = self.unet1.center(self.unet1.pool(conv5_1))
 
         dec5_1 = self.unet1.dec5(torch.cat([center_1, conv5_1], 1))
-
         dec4_1 = self.unet1.dec4(torch.cat([dec5_1, conv4_1], 1))
         dec3_1 = self.unet1.dec3(torch.cat([dec4_1, conv3_1], 1))
         dec2_1 = self.unet1.dec2(torch.cat([dec3_1, conv2_1], 1))
@@ -88,7 +87,6 @@ class VGG_DWired_UNet16(nn.Module):
         center_2 = self.unet2.center(self.unet2.pool(conv5_2))
 
         dec5_2 = self.unet2.dec5(torch.cat([center_2, conv5_2], 1))
-
         dec4_2 = self.unet2.dec4(torch.cat([dec5_2, conv4_2], 1))
         dec3_2 = self.unet2.dec3(torch.cat([dec4_2, conv3_2], 1))
         dec2_2 = self.unet2.dec2(torch.cat([dec3_2, conv2_2], 1))
