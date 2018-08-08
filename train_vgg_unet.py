@@ -69,15 +69,15 @@ dataset_sizes = {x: len(datasets[x]) for x in ['train', 'valid']}
 
 ############################# Training the model ##################################
 def train_model(model, criterion, optimizer, scheduler=None, model_save_path=None, optim_save_path=None,
-                history_save_path=None, num_epochs=25, iter_size=1, compare_Loss=False):
+                log_save_path=None, num_epochs=25, iter_size=1, compare_Loss=False):
     since = time.time()
     
     best_model_wts = copy.deepcopy(model.state_dict())
     best_val = -sys.maxsize
     monitor = MetricMonitor()
-    file = open(history_save_path, 'a') if history_save_path is not None else \
-           type('dummy', (object,), {'write': lambda x,y:0, 'flush': lambda x:0, 'close': lambda x:0})()
-    file.write('Training start at {}\r\n\r\n'.format(time.strftime('%Y-%m-%d %H:%M')))
+    log = open(log_save_path, 'a') if log_save_path is not None else \
+          type('dummy', (object,), {'write': lambda x,y:0, 'flush': lambda x:0, 'close': lambda x:0})()
+    log.write(f'Training start at {time.strftime("%Y-%m-%d %H:%M")}\n\n')
 
     for epoch in range(num_epochs):
         # Each epoch has a training and validation phase
@@ -110,18 +110,14 @@ def train_model(model, criterion, optimizer, scheduler=None, model_save_path=Non
                 dice = ce_dice_value(outputs.data, targets.data, [0, 0, 1, 0])
                 monitor.update('loss', loss.data, inputs.shape[0])
                 monitor.update('dice', dice.data, inputs.shape[0])
-                stream.set_description(
-                    f'epoch {epoch+1}/{num_epochs} | '
-                    f'{phase}: {monitor}'
-                )
+                stream.set_description(f'epoch {epoch+1}/{num_epochs} | {phase}: {monitor}')
             stream.close()
 
             epoch_loss = monitor.get_avg('loss')
             epoch_dice = monitor.get_avg('dice')
             epoch_val = epoch_dice if not compare_Loss else -epoch_loss
 
-            file.write('epoch {:d}/{:d} | {}: loss {:f} | dice {:f} | lr {:.0e}\r\n'.format(
-                       (epoch + 1), num_epochs, phase, epoch_loss, epoch_dice, optimizer.param_groups[0]['lr']))
+            log.write(f'epoch {epoch+1}/{num_epochs} | {phase}: {monitor} | lr {optimizer.param_groups[0]["lr"]:.0e}\n')
 
             if phase == 'valid' and scheduler is not None:
                 scheduler.step(-epoch_val)
@@ -133,22 +129,22 @@ def train_model(model, criterion, optimizer, scheduler=None, model_save_path=Non
                 if model_save_path is not None:
                     path = model_save_path.format((epoch+1), abs(best_val))
                     torch.save(best_model_wts, path)
-                    print('Weights of model saved at {}'.format(path))
-                    file.write('Weights of model saved at {}\r\n'.format(path))
+                    print(f'Weights of model saved at {path}')
+                    log.write(f'Weights of model saved at {path}\n')
             if (phase == 'valid') and (optim_save_path is not None):
                 path = optim_save_path.format((epoch + 1), optimizer.param_groups[0]['lr'])
                 torch.save(optimizer.state_dict(), path)
-            file.flush()
+            log.flush()
 
-        file.write('\r\n')
+        log.write('\n')
         print()
 
     time_elapsed = time.time() - since
-    print('Training complete in {:.0f}m {:.0f}s'.format(time_elapsed // 60, time_elapsed % 60))
-    print('Best Val: {:.4f}'.format(best_val))
-    file.write('Training complete in {:.0f}m {:.0f}s\r\n'.format(time_elapsed // 60, time_elapsed % 60))
-    file.write('Best Val: {:f}\r\n'.format(best_val))
-    file.close()
+    print(f'Training complete in {(time_elapsed//60):.0f}m {(time_elapsed%60):.0f}s')
+    print(f'Best Val: {best_val:.4f}')
+    log.write(f'Training complete in {(time_elapsed//60):.0f}m {(time_elapsed%60):.0f}s\n')
+    log.write(f'Best Val: {best_val:f}\n')
+    log.close()
 
     # load best model weights
     model.load_state_dict(best_model_wts)
@@ -174,7 +170,7 @@ exp_lr_scheduler = lr_scheduler.ReduceLROnPlateau(optimizer, patience=10, verbos
 
 model_save_path = os.path.join(WEIGHTS_DIR, 'test/unet_{:d}_{:.4f}.pth')
 optim_save_path = None #os.path.join(WEIGHTS_DIR, 'test/optim.pth')
-history_save_path = None #os.path.join(WEIGHTS_DIR, 'test/history.txt')
+log_save_path = None #os.path.join(WEIGHTS_DIR, 'test/log.txt')
 net = train_model(net, criterion, optimizer, exp_lr_scheduler, model_save_path, optim_save_path,
-                  history_save_path, num_epochs=40)
+                  log_save_path, num_epochs=40)
 
