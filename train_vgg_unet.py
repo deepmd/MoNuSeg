@@ -153,7 +153,6 @@ def train_model(model, criterion, optimizer, scheduler=None, model_save_path=Non
 
 ########################### Config Train ##############################
 net = VGG_UNet16(num_classes=4, pretrained=True).cuda()
-
 # weight_path = os.path.join(WEIGHTS_DIR, 'UNET3/unet-0.5996.pth')
 # net.load_state_dict(torch.load(weight_path))
 
@@ -165,6 +164,9 @@ def criterion(outputs, masks):
 print('\n---------------- Training unet ----------------')
 optimizer = optim.SGD(filter(lambda p:  p.requires_grad, net.parameters()), lr=5e-3,
                       momentum=0.9, weight_decay=0.0001)
+# optim_path = os.path.join(WEIGHTS_DIR, 'test/optim.pth')
+# optimizer.load_state_dict(torch.load(optim_path))
+
 # exp_lr_scheduler = lr_scheduler.StepLR(optimizer, step_size=50, gamma=0.1)
 exp_lr_scheduler = lr_scheduler.ReduceLROnPlateau(optimizer, patience=10, verbose=True)
 
