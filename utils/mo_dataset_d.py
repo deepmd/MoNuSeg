@@ -10,13 +10,15 @@ class MODatasetD(Dataset):
     """Multi Organ Dataset for Double UNet"""
 
     def __init__(self, root_dir, ids, num_patches=None, patch_size=None, transform=None, bgr=False,
-                 masks=['inside', 'touching'], numeric_mask=True, centroid_size=5, zero_centroids=False):
+                 masks=['inside', 'touching'], numeric_mask=True, centroid_size=5, image_scale=1,
+                 zero_centroids=False):
         self.ids = ids
         self.transform = transform
         self.req_masks = masks
         self.numeric_mask = numeric_mask
         self.zero_centroids = zero_centroids
         self.centroid_size = centroid_size
+        self.scale = image_scale
         self.patch_coords = None
         if num_patches is not None and patch_size is not None:
             self.ids = np.random.permutation(np.repeat(ids, num_patches))
@@ -28,8 +30,8 @@ class MODatasetD(Dataset):
                 img_path = os.path.join(root_dir, IMAGES_DIR, self.ids[0]+'.tif')
                 img = cv2.imread(img_path)
                 self.patch_coords = np.zeros((len(self.ids), 4), dtype=np.int)
-                self.patch_coords[:, 0] = np.random.randint(0, img.shape[:-1][0]-patch_size, (len(self.ids)))
-                self.patch_coords[:, 1] = np.random.randint(0, img.shape[:-1][1]-patch_size, (len(self.ids)))
+                self.patch_coords[:, 0] = np.random.randint(0, img.shape[0]-patch_size, (len(self.ids)))
+                self.patch_coords[:, 1] = np.random.randint(0, img.shape[1]-patch_size, (len(self.ids)))
                 self.patch_coords[:, 2] = self.patch_coords[:, 0] + patch_size
                 self.patch_coords[:, 3] = self.patch_coords[:, 1] + patch_size
                 np.savetxt(patch_info_path, self.patch_coords, delimiter=',', fmt='%d')
@@ -39,6 +41,9 @@ class MODatasetD(Dataset):
         for img_id in ids:
             img_path = os.path.join(root_dir, IMAGES_DIR, img_id+'.tif')
             img = cv2.imread(img_path)
+            if image_scale > 1:
+                img = cv2.resize(img, (img.shape[0]*image_scale, img.shape[1]*image_scale),
+                                 interpolation=cv2.INTER_LANCZOS4)
             img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB) if not bgr else img
             self.images[img_id] = img
             self.masks[img_id] = {}
@@ -73,18 +78,20 @@ class MODatasetD(Dataset):
 
         if self.patch_coords is not None:
             y1, x1, y2, x2 = self.patch_coords[idx]
-            img = img[y1:y2, x1:x2, :]
+            img = img[y1*self.scale:y2*self.scale, x1*self.scale:x2*self.scale, :]
             masks = [gt_masks[m][y1:y2, x1:x2] for m in self.req_masks]
             labels = labels[y1:y2, x1:x2]
         else:
             masks = [gt_masks[m] for m in self.req_masks]
 
+        H, W = img.shape[0]//self.scale, img.shape[1]//self.scale
+
         if self.zero_centroids:
-            labels = np.zeros((img.shape[0], img.shape[1], 1), dtype=np.uint8)
+            labels = np.zeros((H, W, 1), dtype=np.uint8)
         else:
             labels = [labels == label for label in np.unique(labels) if label != 0]
             labels = np.stack(labels, axis=-1).astype(np.uint8) if len(labels) > 0 else \
-                np.zeros((img.shape[0], img.shape[1], 1), dtype=np.uint8)
+                np.zeros((H, W, 1), dtype=np.uint8)
 
         masks = np.stack(masks, axis=-1)
         if masks.ndim == 2:
@@ -101,7 +108,7 @@ class MODatasetD(Dataset):
             masks = np.expand_dims(n_mask, axis=0)
 
         if self.zero_centroids:
-            centroids = np.zeros((1, img.shape[1], img.shape[2]))
+            centroids = np.zeros((1, H, W))
         else:
             centroids = helper.get_centroids(labels, centroid_size=self.centroid_size)
             centroids = np.expand_dims(centroids, axis=0)
@@ -134,7 +141,7 @@ def train_transforms(image, mask, labels):
 
 def run_check_dataset(transform=None):
     ids = ['TCGA-18-5592-01Z-00-DX1']
-    dataset = MODatasetD('../../MoNuSeg Training Data', ids, num_patches=10, patch_size=256, transform=transform)
+    dataset = MODatasetD('../../MoNuSeg Training Data', ids, num_patches=10, patch_size=128, transform=transform)
 
     for n in range(len(dataset)):
         sample = dataset[n]

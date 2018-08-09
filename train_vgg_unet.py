@@ -97,6 +97,7 @@ def train_model(model, criterion, optimizer, scheduler=None, model_save_path=Non
 
                 # forward
                 outputs = model(inputs)
+                # outputs = F.avg_pool2d(outputs, 4, 4)
                 loss = criterion(outputs, targets)
 
                 # out5,out4,out3,out2,out1,out_fuse = model(inputs)
