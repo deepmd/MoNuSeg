@@ -4,7 +4,7 @@ from utils import extract_patches
 
 
 def predict(model, test_img, patch_height, patch_width, stride_height, stride_width, average_mode=True,
-            normalize_img=False, mask=None):
+            normalize_img=False, mask=None, image_scales_number=1):
     test_img = test_img[np.newaxis, ...]
     test_img = np.moveaxis(test_img, 3, 1)
     full_img_height = test_img.shape[2]
@@ -37,17 +37,26 @@ def predict(model, test_img, patch_height, patch_width, stride_height, stride_wi
     out_shape = patches_imgs_test.shape
     pred_patches = None
     for id, (sample, mask) in enumerate(zip(patches_imgs_test, patches_masks)):
-        sample = transforms.ToTensor()(sample.astype(np.uint8))
-        if normalize_img:
-            sample = transforms.Normalize(IMAGES_MEAN, IMAGES_STD)(sample)
-        sample = torch.unsqueeze(sample, 0)
-        sample = torch.tensor(sample, dtype=torch.float).cuda()
+        samples = []
+        for i in range(0, image_scales_number):
+            resized_sample = sample
+            if i > 0:
+                scale = 2**i
+                resized_sample = cv2.resize(sample, (sample.shape[0]//scale, sample.shape[1]//scale),
+                                            interpolation=cv2.INTER_LINEAR)
+            resized_sample = transforms.ToTensor()(resized_sample.astype(np.uint8))
+            if normalize_img:
+                resized_sample = transforms.Normalize(IMAGES_MEAN, IMAGES_STD)(resized_sample)
+            resized_sample = torch.unsqueeze(resized_sample, 0)
+            resized_sample = torch.tensor(resized_sample, dtype=torch.float).cuda()
+            samples.append(resized_sample)
+        samples = samples[0] if len(samples) == 1 else samples
 
         if mask is None:
-            pred = model(sample)
+            pred = model(samples)
         else:
             mask = torch.tensor(mask, dtype=torch.float).cuda()
-            pred = model(sample, mask)
+            pred = model(samples, mask)
         if pred_patches is None:
             pred_patches = np.zeros((out_shape[0], pred.shape[1], out_shape[1], out_shape[2]), dtype=np.float32)
         pred_patches[id, ...] = pred.data.cpu().numpy()
