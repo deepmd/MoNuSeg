@@ -360,3 +360,12 @@ D_UNET_CONFIG_11 = {
     'concat': 'input-discard_out1',
     'masking': 'soft', 'mask_dim': 1
 }
+
+# ------------------ SAMS-NET CONFIG ----------------------------
+SAMS_NET_CONFIG_1 = {
+    'in_channels': 3, 'out_channels': 4,
+    'down': [(64, 2), (128, 2), (256, 2)],
+    'base': [(256, 2)],
+    'up'  : [(256, 2), (128, 2), (64, 2)],
+    'up_method': 'deconv'
+}

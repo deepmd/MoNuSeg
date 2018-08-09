@@ -55,7 +55,7 @@ class up(nn.Module):
         elif method in {'linear', 'bilinear', 'trilinear'}:
             self.up = nn.Upsample(scale_factor=2, mode=method, align_corners=True)
         else:
-            self.up = nn.ConvTranspose2d(in_ch1 + in_ch2, out_ch, 2, stride=2)
+            self.up = nn.ConvTranspose2d(in_ch1, in_ch1, kernel_size=2, stride=2)
         self.conv = conv(in_ch1 + in_ch2, out_ch, n)
         self.se = scSE_block(out_ch, 2) if add_se else (lambda x: x)
 

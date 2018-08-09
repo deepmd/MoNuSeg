@@ -103,10 +103,8 @@ class OutBlock(nn.Module):
         if scale_factor == 1:
             self.block = nn.Conv2d(in_channels, out_channels, kernel_size=1)
         elif is_deconv:
-            self.block = nn.Sequential(
-                nn.ConvTranspose2d(in_channels, out_channels, kernel_size=scale_factor*2, stride=scale_factor,
-                                   padding=scale_factor//2, output_padding=scale_factor%2),
-            )
+            self.block = nn.ConvTranspose2d(in_channels, out_channels, kernel_size=scale_factor*2, stride=scale_factor,
+                                            padding=scale_factor//2, output_padding=scale_factor%2)
         else:
             self.block = nn.Sequential(
                 nn.Upsample(scale_factor=scale_factor, mode='bilinear', align_corners=True),
