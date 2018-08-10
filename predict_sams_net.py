@@ -5,6 +5,7 @@ from utils.metrics import aggregated_jaccard, dice_index
 from utils import helper
 from utils.prediction import predict
 from models.sams_net import SAMS_Net
+from models.sams_mild_net import SAMS_MILD_Net
 from scipy.ndimage import morphology
 import scipy.io as sio
 
@@ -93,12 +94,12 @@ def do_prediction(net, output_path, test_ids, patch_size, stride, post_processin
 
 ########################### Config Predict ##############################
 # net = VGG_UNet16(num_classes=4, pretrained=False).cuda()
-net = SAMS_Net(SAMS_NET_CONFIG_1).cuda()
+net = SAMS_MILD_Net(SAMS_NET_CONFIG_2).cuda()
 
-weight_path = os.path.join(WEIGHTS_DIR, 'test/samsnet_37_0.6208.pth')
+weight_path = os.path.join(WEIGHTS_DIR, 'test/samsnet_25_0.6285.pth')
 net.load_state_dict(torch.load(weight_path))
 output_path = os.path.join(OUTPUT_DIR, 'SAMS')
 
 # all_ids = [os.path.splitext(f)[0] for f in os.listdir(os.path.join(INPUT_DIR, IMAGES_DIR))]
 do_prediction(net, output_path, TEST_IDS, patch_size=128, stride=32,
-              post_processing=post_processing_watershed, dilation=0, image_scales_number=4)
+              post_processing=post_processing_watershed, dilation=0, image_scales_number=5)

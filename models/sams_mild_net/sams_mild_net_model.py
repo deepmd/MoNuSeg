@@ -1,9 +1,9 @@
-from .sams_net_parts import *
+from .sams_mild_net_parts import *
 
 
-class SAMS_Net(nn.Module):
+class SAMS_MILD_Net(nn.Module):
     def __init__(self, config):
-        super(SAMS_Net, self).__init__()
+        super(SAMS_MILD_Net, self).__init__()
         if len(config['down']) != len(config['up']):
             raise ValueError('Length of \'down\' and \'up\' should be the same.')
         self.downs = []
@@ -13,10 +13,10 @@ class SAMS_Net(nn.Module):
         in_channels = config['in_channels']
         last_channels = 0
         for d_channels, n in config['down']:
-            self.downs.append(DownBlock(last_channels+in_channels, d_channels))
+            self.downs.append(DownBlock(in_channels, last_channels, d_channels))
             last_channels = d_channels
         for b_channels, n in config['base']:
-            self.bases.append(ConvBlock(last_channels+in_channels, b_channels))
+            self.bases.append(MILDBlock(in_channels, last_channels, b_channels))
             last_channels = b_channels
         scale = 2 ** (len(self.downs) - 1)
         for (u_channels, n), (d_channels, _) in zip(config['up'], reversed(config['down'])):
@@ -32,13 +32,12 @@ class SAMS_Net(nn.Module):
     def forward(self, inputs):
         d_outs = []
         outputs = []
+        x = None
         for i, down in enumerate(self.downs):
-            x = torch.cat([x, inputs[i]], dim=1) if i > 0 else inputs[0]
-            x, before_pool = down(x)
+            x, before_pool = down(inputs[i], x)
             d_outs.append(before_pool)
         for i, base in enumerate(self.bases):
-            x = torch.cat([x, inputs[len(self.downs)]], dim=1)
-            x = base(x)
+            x = base(inputs[len(self.downs)], x)
         for up, out, d_out in zip(self.ups, self.outs, reversed(d_outs)):
             x = up(x, d_out)
             outputs.append(out(x))

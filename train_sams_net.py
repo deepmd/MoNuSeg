@@ -7,6 +7,7 @@ from utils.mo_dataset_sams import MODatasetSAMS
 from utils.metrics import criterion_CCE_SoftDice, ce_dice_value, MetricMonitor
 from utils import augmentation
 from models.sams_net import SAMS_Net
+from models.sams_mild_net import SAMS_MILD_Net
 
 init.set_results_reproducible()
 init.init_torch()
@@ -56,7 +57,7 @@ datasets = {x: MODatasetSAMS(INPUT_DIR,
                              patch_size=128,
                              masks=['touching', 'inside'],
                              centroid_size=5,
-                             image_scales_number=4,
+                             image_scales_number=5,
                              transform=trans[x])
             for x in ['train', 'valid']}
 dataloaders = {x: torch.utils.data.DataLoader(datasets[x],
@@ -101,7 +102,8 @@ def train_model(model, criterion, optimizer, scheduler=None, model_save_path=Non
                 loss0 = criterion(outputs[0], targets)
                 loss1 = criterion(outputs[1], targets)
                 loss2 = criterion(outputs[2], targets)
-                loss = loss0 + loss1 + loss2
+                loss3 = criterion(outputs[3], targets)
+                loss = loss0 + loss1/num_epochs + loss2/(num_epochs*2) + loss3/(num_epochs*4)
 
                 # backward + optimize only if in training phase
                 if phase == 'train':
@@ -156,7 +158,7 @@ def train_model(model, criterion, optimizer, scheduler=None, model_save_path=Non
 
 
 ########################### Config Train ##############################
-net = SAMS_Net(SAMS_NET_CONFIG_1).cuda()
+net = SAMS_MILD_Net(SAMS_NET_CONFIG_2).cuda()
 # weight_path = os.path.join(WEIGHTS_DIR, 'UNET3/unet-0.5996.pth')
 # net.load_state_dict(torch.load(weight_path))
 
