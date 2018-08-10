@@ -104,6 +104,7 @@ def do_prediction(net, output_path, test_ids, patch_size, stride, post_processin
 # net = Res_UNet(layers=34, out_channels=3).cuda()
 net = VGG_UNet16(num_classes=3, pretrained=False).cuda()
 # net = LinkNet34(num_classes=3, pretrained=True).cuda()
+net.eval()
 
 weight_path = os.path.join(WEIGHTS_DIR, 'UNET3/unet-0.6693.pth')
 net.load_state_dict(torch.load(weight_path))

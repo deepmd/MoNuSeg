@@ -91,11 +91,12 @@ def do_prediction(net, output_path, test_ids, patch_size, stride, post_processin
 
 ########################### Config Predict ##############################
 net = VGG_UNet16(num_classes=4, pretrained=False).cuda()
+net.eval()
 
-weight_path = os.path.join(WEIGHTS_DIR, 'test1/unet_31_0.6692.pth')
+weight_path = os.path.join(WEIGHTS_DIR, 'unet-0.6522.pth')
 net.load_state_dict(torch.load(weight_path))
 output_path = os.path.join(OUTPUT_DIR, 'VGG16')
 
 # all_ids = [os.path.splitext(f)[0] for f in os.listdir(os.path.join(INPUT_DIR, IMAGES_DIR))]
 do_prediction(net, output_path, TEST_IDS, patch_size=128, stride=32,
-              post_processing=post_processing_watershed, dilation=0)
+              post_processing=post_processing_watershed, dilation=1)

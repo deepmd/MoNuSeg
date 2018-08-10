@@ -115,6 +115,7 @@ def do_prediction(net, output_path, test_ids, patch_size, stride, dilation, gate
 
 ########################### Config Predict ##############################
 net = DUNet(D_UNET_CONFIG_11).cuda()
+net.eval()
 
 weight_path = os.path.join(WEIGHTS_DIR, 'test/dunet3_16_1e-03_1.1976.pth')
 net.load_state_dict(torch.load(weight_path))

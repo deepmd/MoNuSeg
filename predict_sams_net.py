@@ -95,6 +95,7 @@ def do_prediction(net, output_path, test_ids, patch_size, stride, post_processin
 ########################### Config Predict ##############################
 # net = VGG_UNet16(num_classes=4, pretrained=False).cuda()
 net = SAMS_MILD_Net(SAMS_NET_CONFIG_2).cuda()
+net.eval()
 
 weight_path = os.path.join(WEIGHTS_DIR, 'test/samsnet_25_0.6285.pth')
 net.load_state_dict(torch.load(weight_path))
