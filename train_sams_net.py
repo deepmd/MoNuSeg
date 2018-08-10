@@ -103,7 +103,7 @@ def train_model(model, criterion, optimizer, scheduler=None, model_save_path=Non
                 loss1 = criterion(outputs[1], targets)
                 loss2 = criterion(outputs[2], targets)
                 loss3 = criterion(outputs[3], targets)
-                loss = loss0 + loss1/num_epochs + loss2/(num_epochs*2) + loss3/(num_epochs*4)
+                loss = loss0 + loss1/(epoch+1) + loss2/((epoch+1)*2) + loss3/((epoch+1)*4)
 
                 # backward + optimize only if in training phase
                 if phase == 'train':
