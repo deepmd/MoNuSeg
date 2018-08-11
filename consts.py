@@ -1,5 +1,6 @@
 INPUT_DIR = '../MoNuSeg Training Data/'
 WEIGHTS_DIR = './weights'
+SNAPSHOT_DIR = './weights/snapshots'
 OUTPUT_DIR = './outputs'
 
 IMAGES_DIR = 'Tissue images'

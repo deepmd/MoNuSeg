@@ -2,6 +2,7 @@ from common import *
 from consts import *
 from utils import helper
 from utils import augmentation
+from scipy.ndimage import zoom
 import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
@@ -20,6 +21,7 @@ class MODatasetD(Dataset):
         self.centroid_size = centroid_size
         self.scale = image_scale
         self.patch_coords = None
+        self.patch_size = patch_size
         if num_patches is not None and patch_size is not None:
             self.ids = np.random.permutation(np.repeat(ids, num_patches))
             patch_info_path = os.path.join(root_dir, 'patches-{:d}-{:d}.csv'.format(num_patches, patch_size))
@@ -97,8 +99,16 @@ class MODatasetD(Dataset):
         if masks.ndim == 2:
             masks = np.expand_dims(masks, axis=-1)
 
+        if self.patch_size > 128:
+            labels = cv2.resize(labels, (128, 128), interpolation=cv2.INTER_LINEAR)
+            labels = (labels > 0).astype(np.uint8)
+
         if self.transform is not None:
             img, masks, labels = self.transform(img, masks.astype(np.float), labels)
+
+        if self.patch_size > 128:
+            labels = cv2.resize(labels, (self.patch_size, self.patch_size), interpolation=cv2.INTER_LINEAR)
+            labels = (labels > 0).astype(np.uint8)
 
         masks = np.moveaxis(masks, -1, 0)
         if self.numeric_mask:
@@ -142,7 +152,7 @@ def train_transforms(image, masks, labels):
 
 def run_check_dataset(transform=None):
     ids = ['TCGA-18-5592-01Z-00-DX1']
-    dataset = MODatasetD('../../MoNuSeg Training Data', ids, num_patches=10, patch_size=128, transform=transform)
+    dataset = MODatasetD('../../MoNuSeg Training Data', ids, num_patches=10, patch_size=512, transform=transform)
 
     for n in range(len(dataset)):
         sample = dataset[n]
@@ -158,8 +168,8 @@ def run_check_dataset(transform=None):
         plt.rcParams['axes.facecolor'] = 'black'
         plt.imshow(img)
         plt.imshow(np.squeeze(sample['masks'] == 1), cmap=in_cmap, alpha=0.5)
-        # plt.imshow(np.squeeze(sample['masks'] == 2), cmap=bn_cmap, alpha=0.5)
-        plt.imshow(np.squeeze(sample['centroids']), cmap=bn_cmap, alpha=0.5)
+        plt.imshow(np.squeeze(sample['masks'] == 2), cmap=bn_cmap, alpha=0.5)
+        # plt.imshow(np.squeeze(sample['centroids']), cmap=bn_cmap, alpha=0.5)
         plt.show()
         cv2.waitKey(0)
 

@@ -7,6 +7,7 @@ from utils.mo_dataset_d import MODatasetD
 from utils.metrics import criterion_CCE_SoftDice, ce_dice_value, MetricMonitor
 from utils import augmentation
 from models.vgg_unet import VGG_UNet16, VGG_Holistic_UNet16
+from utils.helper import CosineAnnealingLR_with_Restart
 
 init.set_results_reproducible()
 init.init_torch()
@@ -29,8 +30,9 @@ def train_transforms(image, masks, labels=None):
 
     if labels is not None:
         labels_aug = seq_det.augment_images([labels], hooks=hooks_masks)[0]
-        for index in range(labels_aug.shape[-1]):
-            labels_aug[..., index] = (labels_aug[..., index] > 0).astype(np.uint8)
+        labels_aug = (labels_aug > 0).astype(np.uint8)
+        # for index in range(labels_aug.shape[-1]):
+        #     labels_aug[..., index] = (labels_aug[..., index] > 0).astype(np.uint8)
         return image_aug_tensor, masks_aug, labels_aug
     else:
         return image_aug_tensor, masks_aug
@@ -130,7 +132,7 @@ def train_model(model, criterion, optimizer, scheduler=None, model_save_path=Non
             log.write(f'epoch {epoch+1}/{num_epochs} | {phase}: {monitor} | lr {optimizer.param_groups[0]["lr"]:.0e}\n')
 
             if phase == 'valid' and scheduler is not None:
-                scheduler.step(-epoch_val)
+                scheduler.step(epoch)
 
             # save the model and optimizer
             if (phase == 'valid') and (epoch_val > best_val):
@@ -166,19 +168,23 @@ net = VGG_UNet16(num_classes=4, pretrained=True).cuda()
 # weight_path = os.path.join(WEIGHTS_DIR, 'UNET3/unet-0.5996.pth')
 # net.load_state_dict(torch.load(weight_path))
 
+
 def criterion(outputs, masks):
     return criterion_CCE_SoftDice(outputs, masks,
                                   dice_w=[0.1, 0.3, 0.2, 0.4],
-                                  ce_w  =[0.1, 0.3, 0.2, 0.4])
+                                  ce_w=[0.1, 0.3, 0.2, 0.4])
+
 
 print('\n---------------- Training unet ----------------')
-optimizer = optim.SGD(filter(lambda p:  p.requires_grad, net.parameters()), lr=5e-3,
-                      momentum=0.9, weight_decay=0.0001)
+optimizer = optim.SGD(filter(lambda p:  p.requires_grad, net.parameters()), lr=5e-3, momentum=0.9, weight_decay=0.0001)
 # optim_path = os.path.join(WEIGHTS_DIR, 'test/optim.pth')
 # optimizer.load_state_dict(torch.load(optim_path))
 
 # exp_lr_scheduler = lr_scheduler.StepLR(optimizer, step_size=50, gamma=0.1)
-exp_lr_scheduler = lr_scheduler.ReduceLROnPlateau(optimizer, patience=10, verbose=True)
+# exp_lr_scheduler = lr_scheduler.ReduceLROnPlateau(optimizer, patience=10, verbose=True)
+exp_lr_scheduler = CosineAnnealingLR_with_Restart(optimizer, T_max=1, T_mult=2,
+                                                  model=net, out_dir=SNAPSHOT_DIR,
+                                                  take_snapshot=True, eta_min=1e-6)
 
 model_save_path = os.path.join(WEIGHTS_DIR, 'test/unet_{:d}_{:.4f}.pth')
 optim_save_path = os.path.join(WEIGHTS_DIR, 'test/optim.pth')
