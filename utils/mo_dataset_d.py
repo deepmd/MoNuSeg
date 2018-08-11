@@ -99,16 +99,14 @@ class MODatasetD(Dataset):
         if masks.ndim == 2:
             masks = np.expand_dims(masks, axis=-1)
 
-        if self.patch_size > 128:
-            labels = cv2.resize(labels, (128, 128), interpolation=cv2.INTER_LINEAR)
-            labels = (labels > 0).astype(np.uint8)
-
         if self.transform is not None:
+            if self.patch_size > 128:
+                labels = cv2.resize(labels, (128, 128), interpolation=cv2.INTER_LINEAR)
+                labels = (labels > 0).astype(np.uint8)
             img, masks, labels = self.transform(img, masks.astype(np.float), labels)
-
-        if self.patch_size > 128:
-            labels = cv2.resize(labels, (self.patch_size, self.patch_size), interpolation=cv2.INTER_LINEAR)
-            labels = (labels > 0).astype(np.uint8)
+            if self.patch_size > 128:
+                labels = cv2.resize(labels, (self.patch_size, self.patch_size), interpolation=cv2.INTER_LINEAR)
+                labels = (labels > 0).astype(np.uint8)
 
         masks = np.moveaxis(masks, -1, 0)
         if self.numeric_mask:
@@ -144,8 +142,9 @@ def train_transforms(image, masks, labels):
     masks = (masks >= MASK_THRESHOLD).astype(np.uint8)
 
     labels = seq_det.augment_images([labels], hooks=hooks_masks)[0]
-    for index in range(labels.shape[-1]):
-        labels[..., index] = (labels[..., index] > 0).astype(np.uint8)
+    labels = (labels > 0).astype(np.uint8)
+    # for index in range(labels.shape[-1]):
+    #     labels[..., index] = (labels[..., index] > 0).astype(np.uint8)
 
     return image, masks, labels
 

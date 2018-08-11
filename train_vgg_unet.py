@@ -7,7 +7,7 @@ from utils.mo_dataset_d import MODatasetD
 from utils.metrics import criterion_CCE_SoftDice, ce_dice_value, MetricMonitor
 from utils import augmentation
 from models.vgg_unet import VGG_UNet16, VGG_Holistic_UNet16
-from utils.helper import CosineAnnealingLR_with_Restart
+from utils.cosine_lrscheduler import CosineAnnealingLR_with_Restart
 
 init.set_results_reproducible()
 init.init_torch()
@@ -21,30 +21,30 @@ def train_transforms(image, masks, labels=None):
     # Convert the stochastic sequence of augmenters to a deterministic one.
     # The deterministic sequence will always apply the exactly same effects to the images.
     seq_det = seq.to_deterministic()  # call this for each batch again, NOT only once at the start
-    image_aug = seq_det.augment_images([image])[0]
-    image_aug_tensor = transforms.ToTensor()(image_aug.copy())
-    image_aug_tensor = transforms.Normalize(IMAGES_MEAN, IMAGES_STD)(image_aug_tensor)
+    image = seq_det.augment_images([image])[0]
+    image = transforms.ToTensor()(image.copy())
+    image = transforms.Normalize(IMAGES_MEAN, IMAGES_STD)(image)
 
-    masks_aug = seq_det.augment_images([masks], hooks=hooks_masks)[0]
-    masks_aug = (masks_aug >= MASK_THRESHOLD).astype(np.uint8)
+    masks = seq_det.augment_images([masks], hooks=hooks_masks)[0]
+    masks = (masks >= MASK_THRESHOLD).astype(np.uint8)
 
     if labels is not None:
-        labels_aug = seq_det.augment_images([labels], hooks=hooks_masks)[0]
-        labels_aug = (labels_aug > 0).astype(np.uint8)
-        # for index in range(labels_aug.shape[-1]):
-        #     labels_aug[..., index] = (labels_aug[..., index] > 0).astype(np.uint8)
-        return image_aug_tensor, masks_aug, labels_aug
+        labels = seq_det.augment_images([labels], hooks=hooks_masks)[0]
+        labels = (labels > 0).astype(np.uint8)
+        # for index in range(labels.shape[-1]):
+        #     labels[..., index] = (labels[..., index] > 0).astype(np.uint8)
+        return image, masks, labels
     else:
-        return image_aug_tensor, masks_aug
+        return image, masks
 
 
 def valid_transforms(image, masks, labels=None):
-    img_tensor = transforms.ToTensor()(image.copy())
-    img_tensor = transforms.Normalize(IMAGES_MEAN, IMAGES_STD)(img_tensor)
+    image = transforms.ToTensor()(image.copy())
+    image = transforms.Normalize(IMAGES_MEAN, IMAGES_STD)(image)
     if labels is not None:
-        return img_tensor, masks, labels
+        return image, masks, labels
     else:
-        return img_tensor, masks
+        return image, masks
 
 
 trans = {'train': train_transforms, 'valid': valid_transforms}
@@ -181,10 +181,10 @@ optimizer = optim.SGD(filter(lambda p:  p.requires_grad, net.parameters()), lr=5
 # optimizer.load_state_dict(torch.load(optim_path))
 
 # exp_lr_scheduler = lr_scheduler.StepLR(optimizer, step_size=50, gamma=0.1)
-# exp_lr_scheduler = lr_scheduler.ReduceLROnPlateau(optimizer, patience=10, verbose=True)
-exp_lr_scheduler = CosineAnnealingLR_with_Restart(optimizer, T_max=1, T_mult=2,
-                                                  model=net, out_dir=SNAPSHOT_DIR,
-                                                  take_snapshot=True, eta_min=1e-6)
+exp_lr_scheduler = lr_scheduler.ReduceLROnPlateau(optimizer, patience=10, verbose=True)
+# exp_lr_scheduler = CosineAnnealingLR_with_Restart(optimizer, T_max=1, T_mult=2,
+#                                                   model=net, out_dir=SNAPSHOT_DIR,
+#                                                   take_snapshot=True, eta_min=1e-6)
 
 model_save_path = os.path.join(WEIGHTS_DIR, 'test/unet_{:d}_{:.4f}.pth')
 optim_save_path = os.path.join(WEIGHTS_DIR, 'test/optim.pth')
