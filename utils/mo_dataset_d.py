@@ -119,24 +119,25 @@ class MODatasetD(Dataset):
 
 
 # -----------------------------------------------------------------------
-def train_transforms(image, mask, labels):
-    seq = augmentation.get_train_augmenters_seq1()
+def train_transforms(image, masks, labels):
+    seq = augmentation.get_train_augmenters_seq2(mode='constant')
     hooks_masks = augmentation.get_train_masks_augmenters_deactivator()
 
     # Convert the stochastic sequence of augmenters to a deterministic one.
     # The deterministic sequence will always apply the exactly same effects to the images.
     seq_det = seq.to_deterministic()  # call this for each batch again, NOT only once at the start
-    image_aug = seq_det.augment_images([image])[0]
-    mask_aug = seq_det.augment_images([mask], hooks=hooks_masks)[0]
-    labels_aug = seq_det.augment_images([labels], hooks=hooks_masks)[0]
+    image = seq_det.augment_images([image])[0]
+    image = transforms.ToTensor()(image.copy())
+    # image = transforms.Normalize(IMAGES_MEAN, IMAGES_STD)(image)
 
-    mask_aug = (mask_aug >= MASK_THRESHOLD).astype(np.uint8)
-    for index in range(labels_aug.shape[-1]):
-        labels_aug[..., index] = (labels_aug[..., index] > 0).astype(np.uint8)
+    masks = seq_det.augment_images([masks], hooks=hooks_masks)[0]
+    masks = (masks >= MASK_THRESHOLD).astype(np.uint8)
 
-    image_aug_tensor = transforms.ToTensor()(image_aug.copy())
+    labels = seq_det.augment_images([labels], hooks=hooks_masks)[0]
+    for index in range(labels.shape[-1]):
+        labels[..., index] = (labels[..., index] > 0).astype(np.uint8)
 
-    return image_aug_tensor, mask_aug, labels_aug
+    return image, masks, labels
 
 
 def run_check_dataset(transform=None):
