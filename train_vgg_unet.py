@@ -48,21 +48,21 @@ def valid_transforms(image, masks, labels=None):
 
 
 trans = {'train': train_transforms, 'valid': valid_transforms}
-all_ids = [os.path.splitext(f)[0] for f in os.listdir(os.path.join(INPUT_DIR, IMAGES_DIR))]
-train_ids = [i for i in all_ids if i not in TEST_IDS]
-ids_train, ids_valid = train_test_split(train_ids, test_size=0.2, random_state=42)
-ids = {'train': ids_train, 'valid': ids_valid}
+# all_ids = [os.path.splitext(f)[0] for f in os.listdir(os.path.join(INPUT_DIR, IMAGES_DIR))]
+# train_ids = [i for i in all_ids if i not in TEST_IDS]
+# ids_train, ids_valid = train_test_split(train_ids, test_size=0.2, random_state=42)
+ids = {'train': D_TRAIN_IDS, 'valid': D_VALID_IDS}
 datasets = {x: MODatasetD(INPUT_DIR,
                           ids[x],
-                          num_patches=100,
-                          patch_size=128,
+                          num_patches=1000,
+                          patch_size=256,
                           masks=['touching', 'inside'],
                           centroid_size=5,
                           transform=trans[x])
             for x in ['train', 'valid']}
 dataloaders = {x: torch.utils.data.DataLoader(datasets[x],
                                               batch_size=4,
-                                              shuffle=True, 
+                                              shuffle=True,
                                               num_workers=8,
                                               pin_memory=True)
                for x in ['train', 'valid']}
@@ -132,7 +132,7 @@ def train_model(model, criterion, optimizer, scheduler=None, model_save_path=Non
             log.write(f'epoch {epoch+1}/{num_epochs} | {phase}: {monitor} | lr {optimizer.param_groups[0]["lr"]:.0e}\n')
 
             if phase == 'valid' and scheduler is not None:
-                scheduler.step(epoch)
+                scheduler.step(-epoch_val)
 
             # save the model and optimizer
             if (phase == 'valid') and (epoch_val > best_val):
@@ -186,9 +186,9 @@ exp_lr_scheduler = lr_scheduler.ReduceLROnPlateau(optimizer, patience=10, verbos
 #                                                   model=net, out_dir=SNAPSHOT_DIR,
 #                                                   take_snapshot=True, eta_min=1e-6)
 
-model_save_path = os.path.join(WEIGHTS_DIR, 'test/unet_{:d}_{:.4f}.pth')
-optim_save_path = os.path.join(WEIGHTS_DIR, 'test/optim.pth')
-log_save_path = os.path.join(WEIGHTS_DIR, 'test/log.txt')
+model_save_path = os.path.join(WEIGHTS_DIR, 'final2/unet_{:d}_{:.4f}.pth')
+optim_save_path = os.path.join(WEIGHTS_DIR, 'final2/optim.pth')
+log_save_path = os.path.join(WEIGHTS_DIR, 'final2/log.txt')
 net = train_model(net, criterion, optimizer, exp_lr_scheduler, model_save_path, optim_save_path,
-                  log_save_path, num_epochs=40)
+                  log_save_path, num_epochs=100)
 
