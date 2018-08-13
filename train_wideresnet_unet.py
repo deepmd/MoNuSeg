@@ -3,11 +3,10 @@ from sklearn.model_selection import train_test_split
 from common import *
 from consts import *
 from utils import init
-from utils.mo_dataset_d import MODatasetD
-from utils.metrics import criterion_CCE_SoftDice, ce_dice_value, MetricMonitor
+from utils.mo_dataset import MODataset
+from utils.metrics import dice_value, MetricMonitor, criterion_BCE_SoftDice
 from utils import augmentation
-from models.vgg_unet import VGG_UNet16, VGG_Holistic_UNet16
-from utils.cosine_lrscheduler import CosineAnnealingLR_with_Restart
+from models.wideresnet_unet.ternausnet2 import TernausNetV2
 
 init.set_results_reproducible()
 init.init_torch()
@@ -48,17 +47,17 @@ def valid_transforms(image, masks, labels=None):
 
 
 trans = {'train': train_transforms, 'valid': valid_transforms}
-# all_ids = [os.path.splitext(f)[0] for f in os.listdir(os.path.join(INPUT_DIR, IMAGES_DIR))]
-# train_ids = [i for i in all_ids if i not in TEST_IDS]
-# ids_train, ids_valid = train_test_split(train_ids, test_size=0.2, random_state=42)
-ids = {'train': D_TRAIN_IDS, 'valid': D_VALID_IDS}
-datasets = {x: MODatasetD(INPUT_DIR,
-                          ids[x],
-                          num_patches=1000,
-                          patch_size=256,
-                          masks=['touching', 'inside'],
-                          centroid_size=5,
-                          transform=trans[x])
+all_ids = [os.path.splitext(f)[0] for f in os.listdir(os.path.join(INPUT_DIR, IMAGES_DIR))]
+train_ids = [i for i in all_ids if i not in TEST_IDS]
+ids_train, ids_valid = train_test_split(train_ids, test_size=0.2, random_state=42)
+ids = {'train': ids_train, 'valid': ids_valid}
+# ids = {'train': R_TRAIN_IDS, 'valid': R_VALID_IDS}
+datasets = {x: MODataset(INPUT_DIR,
+                         ids[x],
+                         num_patches=100,
+                         patch_size=128,
+                         masks=['touching', 'inside'],
+                         transform=trans[x])
             for x in ['train', 'valid']}
 dataloaders = {x: torch.utils.data.DataLoader(datasets[x],
                                               batch_size=4,
@@ -93,23 +92,13 @@ def train_model(model, criterion, optimizer, scheduler=None, model_save_path=Non
                 # get the inputs
                 inputs = torch.tensor(samples['image'], requires_grad=True).cuda(async=True)
                 # get the targets
-                masks = torch.tensor(samples['masks'], dtype=torch.long).cuda(async=True)
-                centroids = torch.tensor(samples['centroids'], dtype=torch.long).cuda(async=True)
-                targets = masks + centroids
+                targets = torch.tensor(samples['masks'], dtype=torch.float).cuda(async=True)
+                # get the weight map
+                # weight = torch.tensor(samples['weight'], dtype=torch.float).cuda(async=True)
 
                 # forward
                 outputs = model(inputs)
-                # outputs = F.avg_pool2d(outputs, 4, 4)
                 loss = criterion(outputs, targets)
-
-                # out5,out4,out3,out2,out1,out_fuse = model(inputs)
-                # loss5 = criterion(out5, targets)
-                # loss4 = criterion(out4, targets)
-                # loss3 = criterion(out3, targets)
-                # loss2 = criterion(out2, targets)
-                # loss1 = criterion(out1, targets)
-                # loss_fuse = criterion(out_fuse, targets)
-                # loss = loss5 + loss4 + loss3 + loss2 + loss1 + loss_fuse
 
                 # backward + optimize only if in training phase
                 if phase == 'train':
@@ -119,7 +108,7 @@ def train_model(model, criterion, optimizer, scheduler=None, model_save_path=Non
                         optimizer.zero_grad()
 
                 # statistics
-                dice = ce_dice_value(outputs.data, targets.data, [0, 0, 1, 0])
+                dice = dice_value(outputs.data, targets.data, [0, 1])
                 monitor.update('loss', loss.data, inputs.shape[0])
                 monitor.update('dice', dice.data, inputs.shape[0])
                 stream.set_description(f'epoch {epoch+1}/{num_epochs} | {phase}: {monitor}')
@@ -164,31 +153,25 @@ def train_model(model, criterion, optimizer, scheduler=None, model_save_path=Non
 
 
 ########################### Config Train ##############################
-net = VGG_UNet16(num_classes=4, pretrained=True).cuda()
-# weight_path = os.path.join(WEIGHTS_DIR, 'UNET3/unet-0.5996.pth')
-# net.load_state_dict(torch.load(weight_path))
+net = TernausNetV2(num_classes=2, num_input_channels=3).cuda()
+# weight_path = os.path.join(WEIGHTS_DIR, 'deepglobe_buildings.pt')
+# state = torch.load(weight_path)
+# state = {key.replace('module.', ''): value for key, value in state['model'].items()}
+# net.load_state_dict(state)
 
 
 def criterion(outputs, masks):
-    return criterion_CCE_SoftDice(outputs, masks,
-                                  dice_w=[0.1, 0.3, 0.2, 0.4],
-                                  ce_w=[0.1, 0.3, 0.2, 0.4])
+    return criterion_BCE_SoftDice(outputs, masks, dice_w=None)
 
 
 print('\n---------------- Training unet ----------------')
 optimizer = optim.SGD(filter(lambda p:  p.requires_grad, net.parameters()), lr=5e-3, momentum=0.9, weight_decay=0.0001)
-# optim_path = os.path.join(WEIGHTS_DIR, 'test/optim.pth')
-# optimizer.load_state_dict(torch.load(optim_path))
 
-# exp_lr_scheduler = lr_scheduler.StepLR(optimizer, step_size=50, gamma=0.1)
 exp_lr_scheduler = lr_scheduler.ReduceLROnPlateau(optimizer, patience=10, verbose=True)
-# exp_lr_scheduler = CosineAnnealingLR_with_Restart(optimizer, T_max=1, T_mult=2,
-#                                                   model=net, out_dir=SNAPSHOT_DIR,
-#                                                   take_snapshot=True, eta_min=1e-6)
 
 model_save_path = os.path.join(WEIGHTS_DIR, 'final2/unet_{:d}_{:.4f}.pth')
 optim_save_path = os.path.join(WEIGHTS_DIR, 'final2/optim.pth')
 log_save_path = os.path.join(WEIGHTS_DIR, 'final2/log.txt')
 net = train_model(net, criterion, optimizer, exp_lr_scheduler, model_save_path, optim_save_path,
-                  log_save_path, num_epochs=100)
+                  log_save_path, num_epochs=50)
 
