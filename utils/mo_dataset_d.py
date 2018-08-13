@@ -12,16 +12,16 @@ class MODatasetD(Dataset):
 
     def __init__(self, root_dir, ids, num_patches=None, patch_size=None, transform=None, bgr=False,
                  masks=['inside', 'touching'], numeric_mask=True, centroid_size=5, image_scale=1,
-                 zero_centroids=False):
+                 scale_to_transform=1, get_areas=False):
         self.ids = ids
         self.transform = transform
         self.req_masks = masks
         self.numeric_mask = numeric_mask
-        self.zero_centroids = zero_centroids
         self.centroid_size = centroid_size
         self.scale = image_scale
         self.patch_coords = None
-        self.patch_size = patch_size
+        self.transform_scale = scale_to_transform
+        self.get_areas = get_areas
         if num_patches is not None and patch_size is not None:
             self.ids = np.random.permutation(np.repeat(ids, num_patches))
             patch_info_path = os.path.join(root_dir, 'patches-{:d}-{:d}.csv'.format(num_patches, patch_size))
@@ -88,24 +88,23 @@ class MODatasetD(Dataset):
 
         H, W = img.shape[0]//self.scale, img.shape[1]//self.scale
 
-        if self.zero_centroids:
-            labels = np.zeros((H, W, 1), dtype=np.uint8)
-        else:
-            labels = [labels == label for label in np.unique(labels) if label != 0]
-            labels = np.stack(labels, axis=-1).astype(np.uint8) if len(labels) > 0 else \
-                np.zeros((H, W, 1), dtype=np.uint8)
+        labels = [labels == label for label in np.unique(labels) if label != 0]
+        labels = np.stack(labels, axis=-1).astype(np.uint8) if len(labels) > 0 else \
+            np.zeros((H, W, 1), dtype=np.uint8)
 
         masks = np.stack(masks, axis=-1)
         if masks.ndim == 2:
             masks = np.expand_dims(masks, axis=-1)
 
         if self.transform is not None:
-            if self.patch_size > 128:
-                labels = cv2.resize(labels, (128, 128), interpolation=cv2.INTER_LINEAR)
+            patch_size = masks.shape[0]
+            if self.transform_scale != 1:
+                labels = cv2.resize(labels, (int(patch_size*self.transform_scale), int(patch_size*self.transform_scale)),
+                                    interpolation=cv2.INTER_LINEAR)
                 labels = (labels > 0).astype(np.uint8)
             img, masks, labels = self.transform(img, masks.astype(np.float), labels)
-            if self.patch_size > 128:
-                labels = cv2.resize(labels, (self.patch_size, self.patch_size), interpolation=cv2.INTER_LINEAR)
+            if self.transform_scale != 1:
+                labels = cv2.resize(labels, (patch_size, patch_size), interpolation=cv2.INTER_LINEAR)
                 labels = (labels > 0).astype(np.uint8)
 
         masks = np.moveaxis(masks, -1, 0)
@@ -115,13 +114,14 @@ class MODatasetD(Dataset):
                 n_mask = np.maximum(n_mask, masks[i] * (i + 1))
             masks = np.expand_dims(n_mask, axis=0)
 
-        if self.zero_centroids:
-            centroids = np.zeros((1, H, W))
+        if self.get_areas:
+            centroids, areas = helper.get_centroids_areas(labels, centroid_size=self.centroid_size)
         else:
             centroids = helper.get_centroids(labels, centroid_size=self.centroid_size)
-            centroids = np.expand_dims(centroids, axis=0)
+        centroids = np.expand_dims(centroids, axis=0)
 
-        sample = {'image': img, 'masks': masks, 'centroids': centroids}
+        sample = {'image': img, 'masks': masks, 'centroids': centroids} if not self.get_areas else \
+                 {'image': img, 'masks': masks, 'centroids': centroids, 'areas': areas}
 
         return sample
 
@@ -151,7 +151,7 @@ def train_transforms(image, masks, labels):
 
 def run_check_dataset(transform=None):
     ids = ['TCGA-18-5592-01Z-00-DX1']
-    dataset = MODatasetD('../../MoNuSeg Training Data', ids, num_patches=10, patch_size=512, transform=transform)
+    dataset = MODatasetD('../../MoNuSeg Training Data', ids, num_patches=10, patch_size=512, transform=transform, get_areas=True)
 
     for n in range(len(dataset)):
         sample = dataset[n]
@@ -167,8 +167,8 @@ def run_check_dataset(transform=None):
         plt.rcParams['axes.facecolor'] = 'black'
         plt.imshow(img)
         plt.imshow(np.squeeze(sample['masks'] == 1), cmap=in_cmap, alpha=0.5)
-        plt.imshow(np.squeeze(sample['masks'] == 2), cmap=bn_cmap, alpha=0.5)
-        # plt.imshow(np.squeeze(sample['centroids']), cmap=bn_cmap, alpha=0.5)
+        # plt.imshow(np.squeeze(sample['masks'] == 2), cmap=bn_cmap, alpha=0.5)
+        plt.imshow(np.squeeze(sample['centroids']), cmap=bn_cmap, alpha=0.5)
         plt.show()
         cv2.waitKey(0)
 

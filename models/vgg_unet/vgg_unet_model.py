@@ -82,7 +82,7 @@ class VGG_UNet11(nn.Module):
 
 
 class VGG_UNet16(nn.Module):
-    def __init__(self, num_classes=1, num_filters=32, in_channels=3, pretrained=False):
+    def __init__(self, num_classes=1, num_filters=32, in_channels=3, aux_out_channels=0, pretrained=False):
         """
         :param num_classes:
         :param num_filters:
@@ -139,6 +139,7 @@ class VGG_UNet16(nn.Module):
         self.dec2 = DecoderBlock(128 + num_filters * 2, num_filters * 2 * 2, num_filters)
         self.dec1 = ConvRelu(64 + num_filters, num_filters)
         self.final = nn.Conv2d(num_filters, num_classes, kernel_size=1)
+        self.aux_out = nn.Conv2d(num_filters, 1, kernel_size=1) if aux_out_channels > 0 else None
 
     def forward(self, x):
         if x.shape[1] != 3:
@@ -163,8 +164,9 @@ class VGG_UNet16(nn.Module):
         #     x_out = self.final(dec1)
 
         x_out = self.final(dec1)
+        x_aux_out = self.aux_out(dec1) if self.aux_out is not None else None
 
-        return x_out
+        return (x_out,x_aux_out) if x_aux_out is not None else x_out
 
 
 # class LinkNet34(nn.Module):
