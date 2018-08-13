@@ -82,10 +82,12 @@ def get_centroids_vectors_areas(labels, centroid_size=3, vectors_3d=False):
     return centroids, vectors, areas
 
 
-def get_centroids(labels, centroid_size=3):
+def get_centroids_areas(labels, centroid_size=3, get_areas=True):
     (num_rows, num_cols) = labels.shape[0], labels.shape[1]
     centroids = np.zeros((num_rows, num_cols)).astype(np.uint8)
     centroid_range = math.floor((centroid_size-1) / 2)
+    total_area = num_rows * num_cols
+    areas = np.zeros((num_rows, num_cols), dtype=np.float) if get_areas else None
 
     for index in range(labels.shape[-1]):
         mask = (labels[..., index] > 0).astype(np.uint8)
@@ -96,7 +98,17 @@ def get_centroids(labels, centroid_size=3):
             (xc, yc) = (int(round(center_of_mass[0])), int(round(center_of_mass[1])))
             centroids[xc - centroid_range:xc + centroid_range + 1, yc - centroid_range:yc + centroid_range + 1] = 1
 
-    return centroids
+            # calculate area of mass regions
+            if get_areas:
+                region_props = skimage.measure.regionprops(mask)
+                for props in region_props:
+                    areas += (props.area / total_area) * mask
+
+    return centroids, areas if get_areas else centroids
+
+
+def get_centroids(labels, centroid_size=3):
+    return get_centroids_areas(labels, centroid_size, False)[0]
 
 
 def make_one_hot(labels, C=2):
