@@ -123,6 +123,9 @@ class MODatasetD(Dataset):
         sample = {'image': img, 'masks': masks, 'centroids': centroids} if not self.get_areas else \
                  {'image': img, 'masks': masks, 'centroids': centroids, 'areas': areas}
 
+        # DWM = helper.get_distance_transform_based_weight_map(centroids, BETA_IN_DISTANCE_WEIGHT)
+        # sample = {'image': img, 'masks': masks, 'centroids': centroids, 'weight': DWM}
+
         return sample
 
 
@@ -151,7 +154,7 @@ def train_transforms(image, masks, labels):
 
 def run_check_dataset(transform=None):
     ids = ['TCGA-18-5592-01Z-00-DX1']
-    dataset = MODatasetD('../../MoNuSeg Training Data', ids, num_patches=10, patch_size=512, transform=transform, get_areas=True)
+    dataset = MODatasetD('../../MoNuSeg Training Data', ids, num_patches=10, patch_size=256, transform=transform)
 
     for n in range(len(dataset)):
         sample = dataset[n]
@@ -165,10 +168,15 @@ def run_check_dataset(transform=None):
         bn_cmap[:, -1] = np.linspace(0, 1, 2)
         bn_cmap = colors.ListedColormap(bn_cmap)
         plt.rcParams['axes.facecolor'] = 'black'
-        plt.imshow(img)
-        plt.imshow(np.squeeze(sample['masks'] == 1), cmap=in_cmap, alpha=0.5)
-        # plt.imshow(np.squeeze(sample['masks'] == 2), cmap=bn_cmap, alpha=0.5)
-        plt.imshow(np.squeeze(sample['centroids']), cmap=bn_cmap, alpha=0.5)
+        # plt.imshow(np.squeeze(sample['centroids']))
+        #plt.imshow(np.squeeze(sample['weight']), cmap=in_cmap, alpha=0.5)
+
+        # plt.imshow(img)
+        # plt.imshow(np.squeeze(sample['masks'] == 1), cmap=in_cmap, alpha=0.5)
+        plt.imshow(np.squeeze(sample['masks'] == 2))  # , cmap=bn_cmap, alpha=0.5)
+        plt.imshow(np.squeeze(sample['masks'] == 3), cmap=in_cmap, alpha=0.5)
+        plt.imshow(np.squeeze(sample['masks'] == 1), cmap=bn_cmap, alpha=0.5)
+        # plt.imshow(np.squeeze(sample['centroids']), cmap=bn_cmap, alpha=0.5)
         plt.show()
         cv2.waitKey(0)
 

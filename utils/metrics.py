@@ -19,9 +19,15 @@ def criterion_AngularError(input, target, area, vectors_count=2, weight_min=0):
     return loss
 
 
+# def criterion_BCE_SoftDice(input, target, weight=None, dice_w=None):
+#     loss = F.binary_cross_entropy_with_logits(input, target, weight) + \
+#            dice_loss_with_logits(input, target, weight, dice_w)
+#     return loss
+
 def criterion_BCE_SoftDice(input, target, weight=None, dice_w=None):
-    loss = F.binary_cross_entropy_with_logits(input, target, weight) + \
-           dice_loss_with_logits(input, target, weight, dice_w)
+    alpha = 0.5
+    loss = alpha * F.binary_cross_entropy_with_logits(input, target, weight) + \
+           (1 - alpha) * dice_loss_with_logits(input, target, weight, dice_w)
     return loss
 
 

@@ -44,7 +44,7 @@ DEACTIVATED_MASK_AUG_LIST = ['Superpixels', 'GaussianBlur', 'AverageBlur', 'Medi
                              'CoarseDropout', 'Invert', 'Add_Value_to_each_Pixel', 'Change_Brightness',
                              'ContrastNormalization', 'Grayscale']
 
-# BETA_IN_DISTANCE_WEIGHT = 20
+BETA_IN_DISTANCE_WEIGHT = 40
 
 IMAGES_MEAN = [0.8275685641750257, 0.5215321518722066, 0.646311050624383]
 IMAGES_STD = [0.16204139441725898, 0.248547854527502, 0.2014914668413328]
