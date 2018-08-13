@@ -5,7 +5,7 @@ Adaptation from https://github.com/mapillary/inplace_abn
 from functools import partial
 
 import torch.nn as nn
-from modules import ABN, InPlaceABNWrapper
+from modules import ABN, InPlaceABN
 
 
 def _get_norm_act(network_config):
@@ -21,9 +21,9 @@ def _get_norm_act(network_config):
             exit(1)
     elif network_config["bn_mode"] == "inplace":
         if network_config["activation"] == "leaky_relu":
-            return partial(InPlaceABNWrapper, activation="leaky_relu", slope=network_config["leaky_relu_slope"])
+            return partial(InPlaceABN, activation="leaky_relu", slope=network_config["leaky_relu_slope"])
         elif network_config["activation"] in ["elu", "none"]:
-            return partial(InPlaceABNWrapper, activation=network_config["activation"])
+            return partial(InPlaceABN, activation=network_config["activation"])
         else:
             print("Inplace batch normalization is only compatible with leaky_relu, elu and none")
             exit(1)

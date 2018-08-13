@@ -61,7 +61,8 @@ class TernausNetV2(nn.Module):
     def __init__(self, num_classes=1,
                  num_filters=32,
                  is_deconv=False,
-                 num_input_channels=11):
+                 num_input_channels=11,
+                 encoder_weights_path=None):
         """
         :param num_classes:
         :param num_filters:
@@ -91,10 +92,10 @@ class TernausNetV2(nn.Module):
         model_params = get_model_params(conf["network"])
 
         encoder = WiderResNet(structure=[3, 3, 6, 3, 1, 1], **model_params)
-        # weight_path = os.path.join(WEIGHTS_DIR, 'wide_resnet38_ipabn_lr_256.pth.tar')
-        # state = torch.load(weight_path)
-        # state = {key.replace('module.', ''): value for key, value in state['state_dict'].items()}
-        # encoder.load_state_dict(state)
+        if encoder_weights_path is not None:
+            state = torch.load(encoder_weights_path)
+            state = {key.replace('module.', ''): value for key, value in state['state_dict'].items()}
+            encoder.load_state_dict(state)
 
         self.conv1 = Sequential(
             OrderedDict([('conv1', nn.Conv2d(num_input_channels, 64, 3, padding=1, bias=False))]))
