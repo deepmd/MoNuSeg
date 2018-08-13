@@ -122,3 +122,72 @@ def make_one_hot(labels, C=2):
     # target = Variable(target)
 
     return target
+
+# def get_distance_transform_based_weight_map(centroids, beta=30):
+#
+#     # whole_size = H*W
+#     # UnblanceW = np.ones((num_classes, H, W), dtype=np.float)
+#     # for i in range(num_classes):
+#     #     fg_mask = np.squeeze(masks == i).astype(np.uint8)
+#     #     bg_mask = 1 - fg_mask
+#     #
+#     #     g0_weight = whole_size / (np.count_nonzero(bg_mask) + whole_size)
+#     #     g1_weight = whole_size / (np.count_nonzero(fg_mask) + whole_size)
+#     #
+#     #     UnblanceW[i, ...] = g0_weight * bg_mask + g1_weight * fg_mask
+#
+#     C, H, W = centroids.shape
+#     DWM = np.ones((H, W), dtype=np.float)
+#     # fg_mask = np.squeeze(masks == 2).astype(np.uint8)
+#     fg_mask = np.squeeze(centroids).astype(np.uint8)
+#     bg_mask = 1 - fg_mask
+#     dists = ndimage.morphology.distance_transform_edt(bg_mask)
+#     DWM = (1 - np.minimum(dists / beta, 1))
+#
+#     return DWM
+
+
+def pad(img, pad_size=32):
+    """
+    Load image from a given path and pad it on the sides, so that eash side is divisible by 32 (network requirement)
+    if pad = True:
+        returns image as numpy.array, tuple with padding in pixels as(x_min_pad, y_min_pad, x_max_pad, y_max_pad)
+    else:
+        returns image as numpy.array
+    """
+    if pad_size == 0:
+        return img
+
+    height, width = img.shape[:2]
+
+    if height % pad_size == 0:
+        y_min_pad = 0
+        y_max_pad = 0
+    else:
+        y_pad = pad_size - height % pad_size
+        y_min_pad = int(y_pad / 2)
+        y_max_pad = y_pad - y_min_pad
+
+    if width % pad_size == 0:
+        x_min_pad = 0
+        x_max_pad = 0
+    else:
+        x_pad = pad_size - width % pad_size
+        x_min_pad = int(x_pad / 2)
+        x_max_pad = x_pad - x_min_pad
+
+    img = cv2.copyMakeBorder(img, y_min_pad, y_max_pad, x_min_pad, x_max_pad, cv2.BORDER_REFLECT_101)
+
+    return img, (x_min_pad, y_min_pad, x_max_pad, y_max_pad)
+
+
+def unpad(img, pads):
+    """
+    img: numpy array of the shape (height, width)
+    pads: (x_min_pad, y_min_pad, x_max_pad, y_max_pad)
+    @return padded image
+    """
+    (x_min_pad, y_min_pad, x_max_pad, y_max_pad) = pads
+    height, width = img.shape[:2]
+
+    return img[y_min_pad:height - y_max_pad, x_min_pad:width - x_max_pad]
