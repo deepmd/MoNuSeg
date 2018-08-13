@@ -91,18 +91,18 @@ class TernausNetV2(nn.Module):
 
         model_params = get_model_params(conf["network"])
 
-        encoder = WiderResNet(structure=[3, 3, 6, 3, 1, 1], **model_params)
+        self.encoder = WiderResNet(structure=[3, 3, 6, 3, 1, 1], **model_params)
         if encoder_weights_path is not None:
             state = torch.load(encoder_weights_path)
             state = {key.replace('module.', ''): value for key, value in state['state_dict'].items()}
-            encoder.load_state_dict(state)
+            self.encoder.load_state_dict(state)
 
         self.conv1 = Sequential(
             OrderedDict([('conv1', nn.Conv2d(num_input_channels, 64, 3, padding=1, bias=False))]))
-        self.conv2 = encoder.mod2
-        self.conv3 = encoder.mod3
-        self.conv4 = encoder.mod4
-        self.conv5 = encoder.mod5
+        self.conv2 = self.encoder.mod2
+        self.conv3 = self.encoder.mod3
+        self.conv4 = self.encoder.mod4
+        self.conv5 = self.encoder.mod5
 
         self.center = DecoderBlock(1024, num_filters * 8, num_filters * 8, is_deconv=is_deconv)
         self.dec5 = DecoderBlock(1024 + num_filters * 8, num_filters * 8, num_filters * 8, is_deconv=is_deconv)
