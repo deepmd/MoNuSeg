@@ -107,7 +107,7 @@ class MODatasetD(Dataset):
                 labels = cv2.resize(labels, (patch_size, patch_size), interpolation=cv2.INTER_LINEAR)
                 labels = (labels > 0).astype(np.uint8)
 
-        masks = np.moveaxis(masks, -1, 0)
+        masks = np.rollaxis(masks, -1, 0)
         if self.numeric_mask:
             n_mask = masks[0]
             for i in range(1, len(self.req_masks)):
