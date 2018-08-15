@@ -45,16 +45,17 @@ def valid_transforms(image, masks, labels=None):
 
 
 trans = {'train': train_transforms, 'valid': valid_transforms}
-all_ids = [os.path.splitext(f)[0] for f in os.listdir(os.path.join(INPUT_DIR, IMAGES_DIR))]
-train_ids = [i for i in all_ids if i not in TEST_IDS]
-ids_train, ids_valid = train_test_split(train_ids, test_size=0.2, random_state=42)
-ids = {'train': ids_train, 'valid': ids_valid}
+# all_ids = [os.path.splitext(f)[0] for f in os.listdir(os.path.join(INPUT_DIR, IMAGES_DIR))]
+# train_ids = [i for i in all_ids if i not in TEST_IDS]
+# ids_train, ids_valid = train_test_split(train_ids, test_size=0.2, random_state=42)
+ids = {'train': R_TRAIN_IDS, 'valid': R_VALID_IDS}
 datasets = {x: MODatasetD(INPUT_DIR,
                           ids[x],
-                          num_patches=100,
-                          patch_size=128,
+                          num_patches=1000,
+                          patch_size=256,
                           masks=['touching', 'inside'],
                           centroid_size=5,
+                          scale_to_transform=0.5,
                           transform=trans[x])
             for x in ['train', 'valid']}
 dataloaders = {x: torch.utils.data.DataLoader(datasets[x],
@@ -188,5 +189,5 @@ model_save_path = os.path.join(WEIGHTS_DIR, 'final2/unet_{:d}_{:.4f}.pth')
 optim_save_path = os.path.join(WEIGHTS_DIR, 'final2/optim.pth')
 log_save_path = os.path.join(WEIGHTS_DIR, 'final2/log.txt')
 net = train_model(net, criterion, optimizer, exp_lr_scheduler, model_save_path, optim_save_path,
-                  log_save_path, num_epochs=50)
+                  log_save_path, num_epochs=100)
 
