@@ -58,6 +58,7 @@ datasets = {x: MODatasetD(INPUT_DIR,
                           patch_size=256,
                           masks=['touching', 'inside'],
                           centroid_size=5,
+                          scale_to_transform=0.5,
                           transform=trans[x])
             for x in ['train', 'valid']}
 dataloaders = {x: torch.utils.data.DataLoader(datasets[x],
@@ -73,7 +74,7 @@ dataset_sizes = {x: len(datasets[x]) for x in ['train', 'valid']}
 def train_model(model, criterion, optimizer, scheduler=None, model_save_path=None, optim_save_path=None,
                 log_save_path=None, num_epochs=25, iter_size=1, compare_Loss=False):
     since = time.time()
-    
+
     best_model_wts = copy.deepcopy(model.state_dict())
     best_val = -sys.maxsize
     monitor = MetricMonitor()
@@ -153,9 +154,9 @@ def train_model(model, criterion, optimizer, scheduler=None, model_save_path=Non
 
     time_elapsed = time.time() - since
     print(f'Training complete in {(time_elapsed//60):.0f}m {(time_elapsed%60):.0f}s')
-    print(f'Best Val: {best_val:.4f}')
+    print(f'Best Val: {abs(best_val):.4f}')
     log.write(f'Training complete in {(time_elapsed//60):.0f}m {(time_elapsed%60):.0f}s\n')
-    log.write(f'Best Val: {best_val:f}\n')
+    log.write(f'Best Val: {abs(best_val):f}\n')
     log.close()
 
     # load best model weights
@@ -165,7 +166,7 @@ def train_model(model, criterion, optimizer, scheduler=None, model_save_path=Non
 
 ########################### Config Train ##############################
 net = VGG_UNet16(num_classes=4, pretrained=True).cuda()
-# weight_path = os.path.join(WEIGHTS_DIR, 'UNET3/unet-0.5996.pth')
+# weight_path = os.path.join(WEIGHTS_DIR, 'final2/unet_15_0.7270.pth')
 # net.load_state_dict(torch.load(weight_path))
 
 
@@ -176,7 +177,7 @@ def criterion(outputs, masks):
 
 
 print('\n---------------- Training unet ----------------')
-optimizer = optim.SGD(filter(lambda p:  p.requires_grad, net.parameters()), lr=5e-3, momentum=0.9, weight_decay=0.0001)
+optimizer = optim.SGD(filter(lambda p: p.requires_grad, net.parameters()), lr=5e-3, momentum=0.9, weight_decay=0.0001)
 # optim_path = os.path.join(WEIGHTS_DIR, 'test/optim.pth')
 # optimizer.load_state_dict(torch.load(optim_path))
 
@@ -186,9 +187,9 @@ exp_lr_scheduler = lr_scheduler.ReduceLROnPlateau(optimizer, patience=10, verbos
 #                                                   model=net, out_dir=SNAPSHOT_DIR,
 #                                                   take_snapshot=True, eta_min=1e-6)
 
-model_save_path = os.path.join(WEIGHTS_DIR, 'final2/unet_{:d}_{:.4f}.pth')
-optim_save_path = os.path.join(WEIGHTS_DIR, 'final2/optim.pth')
-log_save_path = os.path.join(WEIGHTS_DIR, 'final2/log.txt')
+model_save_path = os.path.join(WEIGHTS_DIR, 'final4/unet_{:d}_{:.4f}.pth')
+optim_save_path = os.path.join(WEIGHTS_DIR, 'final4/optim.pth')
+log_save_path = os.path.join(WEIGHTS_DIR, 'final4/log.txt')
 net = train_model(net, criterion, optimizer, exp_lr_scheduler, model_save_path, optim_save_path,
                   log_save_path, num_epochs=100)
 

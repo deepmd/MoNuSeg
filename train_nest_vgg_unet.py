@@ -48,7 +48,7 @@ trans = {'train': train_transforms, 'valid': valid_transforms}
 # all_ids = [os.path.splitext(f)[0] for f in os.listdir(os.path.join(INPUT_DIR, IMAGES_DIR))]
 # train_ids = [i for i in all_ids if i not in TEST_IDS]
 # ids_train, ids_valid = train_test_split(train_ids, test_size=0.2, random_state=42)
-ids = {'train': R_TRAIN_IDS, 'valid': R_VALID_IDS}
+ids = {'train': D_TRAIN_IDS, 'valid': D_VALID_IDS}
 datasets = {x: MODatasetD(INPUT_DIR,
                           ids[x],
                           num_patches=1000,
@@ -97,17 +97,7 @@ def train_model(model, criterion, optimizer, scheduler=None, model_save_path=Non
 
                 # forward
                 outputs = model(inputs)
-                # outputs = F.avg_pool2d(outputs, 4, 4)
                 loss = criterion(outputs, targets)
-
-                # out5,out4,out3,out2,out1,out_fuse = model(inputs)
-                # loss5 = criterion(out5, targets)
-                # loss4 = criterion(out4, targets)
-                # loss3 = criterion(out3, targets)
-                # loss2 = criterion(out2, targets)
-                # loss1 = criterion(out1, targets)
-                # loss_fuse = criterion(out_fuse, targets)
-                # loss = loss5 + loss4 + loss3 + loss2 + loss1 + loss_fuse
 
                 # backward + optimize only if in training phase
                 if phase == 'train':
@@ -185,9 +175,9 @@ exp_lr_scheduler = lr_scheduler.ReduceLROnPlateau(optimizer, patience=10, verbos
 #                                                   model=net, out_dir=SNAPSHOT_DIR,
 #                                                   take_snapshot=True, eta_min=1e-6)
 
-model_save_path = os.path.join(WEIGHTS_DIR, 'final2/unet_{:d}_{:.4f}.pth')
-optim_save_path = os.path.join(WEIGHTS_DIR, 'final2/optim.pth')
-log_save_path = os.path.join(WEIGHTS_DIR, 'final2/log.txt')
+model_save_path = os.path.join(WEIGHTS_DIR, 'final4/unet_{:d}_{:.4f}.pth')
+optim_save_path = os.path.join(WEIGHTS_DIR, 'final4/optim.pth')
+log_save_path = os.path.join(WEIGHTS_DIR, 'final4/log.txt')
 net = train_model(net, criterion, optimizer, exp_lr_scheduler, model_save_path, optim_save_path,
                   log_save_path, num_epochs=100)
 
